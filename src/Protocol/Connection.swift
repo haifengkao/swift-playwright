@@ -69,15 +69,11 @@ actor Connection: Sendable {
 			] as [String: Any],
 		]
 
+		let data = try JSONSerialization.data(withJSONObject: message)
+
 		return try await withCheckedThrowingContinuation { continuation in
 			callbacks[id] = continuation
-
-			do {
-				try transport.send(message)
-			} catch {
-				let cb = callbacks.removeValue(forKey: id)
-				cb?.resume(throwing: error)
-			}
+			transport.send(data)
 		}
 	}
 
