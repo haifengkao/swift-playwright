@@ -21,7 +21,7 @@ jobs:
       if: runner.os == 'Linux'
       uses: swift-actions/setup-swift@v2
       with:
-        swift-version: '6.0'
+        swift-version: '6.1'
 
     - name: Cache Playwright Driver
       uses: actions/cache@v4
