@@ -33,7 +33,7 @@ jobs:
       run: swift package --allow-writing-to-package-directory --allow-network-connections all:443 install-playwright
 
     - name: Build
-      run: swift build --verbose
+      run: swift build
 
     - name: Run tests
-      run: swift test --verbose
+      run: swift test
