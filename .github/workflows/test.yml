@@ -1,0 +1,39 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Swift (Linux)
+      if: runner.os == 'Linux'
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: '6.0'
+
+    - name: Cache Playwright Driver
+      uses: actions/cache@v4
+      with:
+        path: src/drivers
+        key: ${{ runner.os }}-playwright-driver-${{ hashFiles('src/Protocol/Driver.swift') }}
+
+    - name: Install Playwright Driver
+      run: swift package --allow-writing-to-package-directory --allow-network-connections all:443 install-playwright
+
+    - name: Build
+      run: swift build --verbose
+
+    - name: Run tests
+      run: swift test --verbose
