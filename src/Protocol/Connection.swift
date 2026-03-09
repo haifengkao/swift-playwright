@@ -35,8 +35,8 @@ actor Connection: Sendable {
 				await self?.receive(payload)
 			}
 
-			// transport closed: fail pending callbacks
-			await self?.failPendingCallbacks()
+			// transport closed (crash, kill, pipe break): tear down fully.
+			await self?.close()
 		}
 	}
 
@@ -82,6 +82,21 @@ actor Connection: Sendable {
 		objects[guid]
 	}
 
+	/// Resolves a typed object from a dictionary containing a GUID reference.
+	///
+	/// Expects `dict[key]` to be `{"guid": "some-guid@123"}` and looks up the
+	/// corresponding object in the registry.
+	///
+	/// - Parameter dict: The dictionary containing the GUID reference.
+	/// - Parameter key: The key whose value holds the `{"guid": ...}` reference.
+	/// - Returns: The resolved object, or `nil` if resolution fails.
+	func resolveObject<T: ChannelOwner>(from dict: [String: Any], key: String) -> T? {
+		guard let ref = dict[key] as? [String: Any], let guid = ref["guid"] as? String, let obj = objects[guid] as? T
+		else { return nil }
+
+		return obj
+	}
+
 	/// Shuts down the connection and underlying transport.
 	func close() {
 		guard !isClosed else { return }
@@ -89,6 +104,14 @@ actor Connection: Sendable {
 
 		let task = messageLoopTask
 		messageLoopTask = nil
+
+		// Notify all live objects so they can update state (e.g. Browser.isConnected),
+		// then sever the tree so the closed graph doesn't stay reachable.
+		for obj in objects.values {
+			obj.emit("close", params: [:])
+			obj.dispose()
+		}
+
 		objects.removeAll()
 		failPendingCallbacks()
 		task?.cancel()
@@ -148,18 +171,50 @@ actor Connection: Sendable {
 				guard let obj = objects[guid] else { return }
 				disposeObject(obj, reason: params["reason"] as? String)
 
+			case "__adopt__":
+				guard let childGuid = params["guid"] as? String,
+				      let newParent = objects[guid],
+				      let child = objects[childGuid]
+				else { return }
+				child.parent?.removeChild(child)
+				newParent.addChild(child)
+				child.setParent(newParent)
+
 			default:
-				// Event dispatch — will be handled in a future version
-				break
+				guard let obj = objects[guid] else { return }
+				obj.emit(method, params: resolveGuidReferences(in: params))
 		}
+	}
+
+	/// Resolves GUID references in event params to actual objects.
+	///
+	/// The server sends `{"page": {"guid": "page@1"}}` — this replaces
+	/// those references with the actual `ChannelOwner` instances.
+	///
+	/// - Note: Only resolves top-level references for now. Nested GUID
+	///   resolution (recursive) will be needed for v0.3 events like
+	///   network interception and console messages.
+	private func resolveGuidReferences(in params: [String: Any]) -> [String: Any] {
+		var resolved: [String: Any]?
+		for (key, value) in params {
+			if let dict = value as? [String: Any], let guid = dict["guid"] as? String, let obj = objects[guid] {
+				if resolved == nil { resolved = params }
+				resolved![key] = obj
+			}
+		}
+
+		return resolved ?? params
 	}
 
 	/// Recursively disposes an object and its children.
 	private func disposeObject(_ obj: ChannelOwner, reason: String? = nil) {
-		for child in Array(obj.children.values) {
+		for child in obj.children.values {
 			disposeObject(child, reason: reason)
 		}
+
 		objects.removeValue(forKey: obj.guid)
 		obj.parent?.removeChild(obj)
+		obj.emit("close", params: [:])
+		obj.dispose()
 	}
 }

@@ -23,4 +23,22 @@ public final class BrowserType: ChannelOwner, @unchecked Sendable {
 		executablePath = initializer["executablePath"] as? String ?? ""
 		super.init(connection: connection, parent: parent, type: type, guid: guid, initializer: initializer)
 	}
+
+	/// Launches a new browser instance.
+	///
+	/// ```swift
+	/// let playwright = try await Playwright.launch()
+	/// let browser = try await playwright.chromium.launch()
+	/// // ... use browser ...
+	/// try await browser.close()
+	/// ```
+	///
+	/// - Parameter options: Launch options (headless, channel, timeout, etc.).
+	/// - Returns: A `Browser` instance.
+	/// - Throws: `PlaywrightError` if the browser could not be launched.
+	///
+	/// See: https://playwright.dev/docs/api/class-browsertype#browser-type-launch
+	public func launch(_ options: LaunchOptions = .init()) async throws -> Browser {
+		try await sendAndResolve("launch", params: options.toProtocol(), key: "browser")
+	}
 }

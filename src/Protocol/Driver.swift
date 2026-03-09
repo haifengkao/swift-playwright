@@ -11,6 +11,7 @@ enum Driver {
 	struct Executable {
 		/// The path to the bundled Node.js binary.
 		let program: String
+
 		/// Arguments to pass (e.g. ["cli.js", "run-driver"]).
 		let arguments: [String]
 	}
@@ -120,6 +121,7 @@ enum Driver {
 		"unknown"
 		#endif
 	}()
+
 	/// Updated by the release preparation agent when cutting a new version.
 	private static let packageVersion = "0.1.0"
 

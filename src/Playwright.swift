@@ -52,28 +52,15 @@ public final class Playwright: Sendable {
 		do {
 			let result = try await connection.sendMessage(guid: "", method: "initialize", params: ["sdkLanguage": Driver.sdkLanguage])
 
-			// The response contains {"playwright": {"guid": "playwright@..."}}
-			guard
-				let playwrightRef = result["playwright"] as? [String: Any],
-				let playwrightGuid = playwrightRef["guid"] as? String,
-				let playwrightObj = await connection.getObject(playwrightGuid)
-			else {
-				throw PlaywrightError.serverError(
-					"Failed to initialize: no Playwright object in response"
-				)
+			guard let playwrightObj: ChannelOwner = await connection.resolveObject(from: result, key: "playwright") else {
+				throw PlaywrightError.serverError("Failed to initialize: no Playwright object in response")
 			}
 
 			/// Resolve browser types from the Playwright object's initializer.
 			/// The initializer contains {"chromium": {"guid": "..."}, ...}
 			func resolveBrowserType(_ key: String) async throws -> BrowserType {
-				guard
-					let ref = playwrightObj.initializer[key] as? [String: Any],
-					let guid = ref["guid"] as? String,
-					let obj = await connection.getObject(guid) as? BrowserType
-				else {
-					throw PlaywrightError.serverError(
-						"Failed to resolve browser type: \(key)"
-					)
+				guard let obj: BrowserType = await connection.resolveObject(from: playwrightObj.initializer, key: key) else {
+					throw PlaywrightError.serverError("Failed to resolve browser type: \(key)")
 				}
 
 				return obj

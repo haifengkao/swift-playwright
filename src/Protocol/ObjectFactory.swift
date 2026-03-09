@@ -10,8 +10,12 @@ import Foundation
 enum ObjectFactory {
 	static func create(parent: ChannelOwner, type: String, guid: String, initializer: [String: Any]) -> ChannelOwner {
 		switch type {
-			case "BrowserType": BrowserType(connection: parent.connection, parent: parent, type: type, guid: guid, initializer: initializer)
-			default: ChannelOwner(connection: parent.connection, parent: parent, type: type, guid: guid, initializer: initializer)
+			case "Page": Page(parent: parent, type: type, guid: guid, initializer: initializer)
+			case "Frame": Frame(parent: parent, type: type, guid: guid, initializer: initializer)
+			case "Browser": Browser(parent: parent, type: type, guid: guid, initializer: initializer)
+			case "BrowserType": BrowserType(parent: parent, type: type, guid: guid, initializer: initializer)
+			case "BrowserContext": BrowserContext(parent: parent, type: type, guid: guid, initializer: initializer)
+			default: ChannelOwner(parent: parent, type: type, guid: guid, initializer: initializer)
 		}
 	}
 }
