@@ -138,8 +138,12 @@ actor Connection: Sendable {
 
 			if let error = message["error"] as? [String: Any] {
 				let errorInfo = (error["error"] as? [String: Any]) ?? error
-				let msg = errorInfo["message"] as? String ?? "Unknown error"
-				callback.resume(throwing: PlaywrightError.serverError(msg))
+				let name = errorInfo["name"] as? String
+				var msg = errorInfo["message"] as? String ?? "Unknown error"
+				if let log = message["log"] as? [String], !log.isEmpty {
+					msg += "\nCall log:\n" + log.joined(separator: "\n") + "\n"
+				}
+				callback.resume(throwing: PlaywrightError.fromServer(msg, name: name))
 			} else {
 				nonisolated(unsafe) let result = message["result"] as? [String: Any] ?? [:]
 				callback.resume(returning: result)
@@ -166,6 +170,7 @@ actor Connection: Sendable {
 				)
 				objects[childGuid] = child
 				parent.addChild(child)
+				child.didCreate { objects[$0] }
 
 			case "__dispose__":
 				guard let obj = objects[guid] else { return }

@@ -2,72 +2,48 @@ import Testing
 import Foundation
 @testable import Playwright
 
-struct BrowserContextTests {
-	@Test("browser.newContext() returns a BrowserContext", .timeLimit(.minutes(1)))
-	func newContext() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch()
+extension PlaywrightTests {
+	@Suite struct BrowserContextTests {
+		@Test("newContext().browser references the creating browser")
+		func newContext() async throws {
+			try await withBrowser { browser in
+				let context = try await browser.newContext()
+				#expect(context.browser === browser)
+			}
+		}
 
-		let context = try await browser.newContext()
-		#expect(context.browser === browser)
+		@Test("context.close() removes context from browser.contexts")
+		func closeRemovesFromBrowser() async throws {
+			try await withBrowser { browser in
+				let context = try await browser.newContext()
+				#expect(browser.contexts.count == 1)
 
-		try await context.close()
-		try await browser.close()
-		await playwright.close()
-	}
+				try await context.close()
+				#expect(browser.contexts.isEmpty)
+			}
+		}
 
-	@Test("context.close() completes without error", .timeLimit(.minutes(1)))
-	func closeSucceeds() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch()
+		@Test("Multiple contexts can coexist on one browser")
+		func multipleContexts() async throws {
+			try await withBrowser { browser in
+				_ = try await browser.newContext()
+				_ = try await browser.newContext()
+				#expect(browser.contexts.count == 2)
+			}
+		}
 
-		let context = try await browser.newContext()
-		try await context.close()
+		@Test("Double-close is idempotent (no error)")
+		func doubleClose() async throws {
+			try await withBrowser { browser in
+				let context = try await browser.newContext()
+				#expect(browser.contexts.count == 1)
 
-		try await browser.close()
-		await playwright.close()
-	}
+				try await context.close()
+				#expect(browser.contexts.isEmpty)
 
-	@Test("Closed context is removed from browser.contexts", .timeLimit(.minutes(1)))
-	func closedContextRemoved() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch()
-
-		let context = try await browser.newContext()
-		#expect(browser.contexts.count == 1)
-
-		try await context.close()
-		#expect(browser.contexts.isEmpty)
-
-		try await browser.close()
-		await playwright.close()
-	}
-
-	@Test("Multiple contexts can coexist on one browser", .timeLimit(.minutes(1)))
-	func multipleContexts() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch()
-
-		let context1 = try await browser.newContext()
-		let context2 = try await browser.newContext()
-		#expect(browser.contexts.count == 2)
-
-		try await context1.close()
-		try await context2.close()
-		try await browser.close()
-		await playwright.close()
-	}
-
-	@Test("Double-close is idempotent (no error)", .timeLimit(.minutes(1)))
-	func doubleClose() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch()
-
-		let context = try await browser.newContext()
-		try await context.close()
-		try await context.close() // Should not throw
-
-		try await browser.close()
-		await playwright.close()
+				try await context.close() // Should not throw
+				#expect(browser.contexts.isEmpty, "Second close should not corrupt contexts list")
+			}
+		}
 	}
 }

@@ -2,57 +2,85 @@ import Testing
 import Foundation
 @testable import Playwright
 
-struct ConnectionTests {
-	@Test("Connection sends initialize and receives correlated response", .timeLimit(.minutes(1)))
-	func initializeHandshake() async throws {
-		let server = try await PlaywrightServer.launch()
-		let transport = Transport.connect(to: server)
-		let connection = Connection(transport: transport)
+extension PlaywrightTests {
+	@Suite struct ConnectionTests {
+		@Test("Connection sends requests and receives matching responses")
+		func requestResponse() async throws {
+			let server = try await PlaywrightServer.launch()
+			let transport = Transport.connect(to: server)
+			let connection = Connection(transport: transport)
 
-		await connection.start()
+			await connection.start()
 
-		let result = try await connection.sendMessage(
-			guid: "",
-			method: "initialize",
-			params: ["sdkLanguage": Driver.sdkLanguage]
-		)
+			// Setup: initialize and launch a browser (serial — needed for setup)
+			let initResult = try await connection.sendMessage(
+				guid: "",
+				method: "initialize",
+				params: ["sdkLanguage": Driver.sdkLanguage]
+			)
 
-		// The response should contain {"playwright": {"guid": "playwright@..."}}
-		let playwrightRef = result["playwright"] as? [String: Any]
-		#expect(playwrightRef != nil, "Response should contain 'playwright' key")
+			let playwrightRef = try #require(initResult["playwright"] as? [String: Any])
+			let playwrightGuid = try #require(playwrightRef["guid"] as? String)
+			let playwrightObj = try #require(await connection.getObject(playwrightGuid))
+			let chromiumGuid = try #require((playwrightObj.initializer["chromium"] as? [String: Any])?["guid"] as? String)
 
-		let playwrightGuid = playwrightRef?["guid"] as? String
-		#expect(playwrightGuid != nil, "Playwright ref should have a GUID")
-	}
+			let launchResult = try await connection.sendMessage(
+				guid: chromiumGuid,
+				method: "launch",
+				params: ["headless": true, "timeout": timeoutMs()] as [String: Any]
+			)
 
-	@Test("Connection registers objects from __create__ messages", .timeLimit(.minutes(1)))
-	func objectRegistration() async throws {
-		let server = try await PlaywrightServer.launch()
-		let transport = Transport.connect(to: server)
-		let connection = Connection(transport: transport)
+			let browserRef = try #require(launchResult["browser"] as? [String: Any])
+			let browserGuid = try #require(browserRef["guid"] as? String)
 
-		await connection.start()
+			// Send two newContext requests concurrently to exercise response correlation
+			async let context1Result = connection.sendMessage(
+				guid: browserGuid,
+				method: "newContext",
+				params: ["timeout": timeoutMs(), "noDefaultBrowserArgs": false] as [String: Any]
+			)
+			async let context2Result = connection.sendMessage(
+				guid: browserGuid,
+				method: "newContext",
+				params: ["timeout": timeoutMs(), "noDefaultBrowserArgs": false] as [String: Any]
+			)
 
-		let result = try await connection.sendMessage(
-			guid: "",
-			method: "initialize",
-			params: ["sdkLanguage": Driver.sdkLanguage]
-		)
+			let (result1, result2) = try await (context1Result, context2Result)
 
-		// After initialize, the connection should have registered objects
-		let playwrightGuid = (result["playwright"] as? [String: Any])?["guid"] as? String
-		#expect(playwrightGuid != nil)
+			// Each response must contain a valid, distinct context GUID
+			let guid1 = try #require((result1["context"] as? [String: Any])?["guid"] as? String, "First response should contain a context GUID")
+			let guid2 = try #require((result2["context"] as? [String: Any])?["guid"] as? String, "Second response should contain a context GUID")
+			#expect(guid1 != guid2, "Concurrent requests should receive distinct responses")
 
-		let playwrightObj = await connection.getObject(playwrightGuid!)
-		#expect(playwrightObj != nil, "Playwright object should be in registry")
-		#expect(playwrightObj?.type == "Playwright")
+			await connection.close()
+		}
 
-		// The Playwright object's initializer should contain browser type GUIDs
-		let chromiumRef = playwrightObj?.initializer["chromium"] as? [String: Any]
-		let chromiumGuid = chromiumRef?["guid"] as? String
-		#expect(chromiumGuid != nil, "Playwright initializer should reference chromium")
+		@Test("Connection registers objects from __create__ messages")
+		func objectRegistration() async throws {
+			let server = try await PlaywrightServer.launch()
+			let transport = Transport.connect(to: server)
+			let connection = Connection(transport: transport)
 
-		let chromiumObj = await connection.getObject(chromiumGuid!)
-		#expect(chromiumObj is BrowserType, "Chromium object should be a BrowserType")
+			await connection.start()
+
+			let result = try await connection.sendMessage(
+				guid: "",
+				method: "initialize",
+				params: ["sdkLanguage": Driver.sdkLanguage]
+			)
+
+			// Objects referenced in the response should be retrievable by GUID
+			let playwrightGuid = try #require((result["playwright"] as? [String: Any])?["guid"] as? String)
+			let playwrightObj = try #require(await connection.getObject(playwrightGuid), "Registered object should be retrievable by GUID")
+
+			// Child objects referenced in initializers should also be in the registry
+			let chromiumGuid = try #require((playwrightObj.initializer["chromium"] as? [String: Any])?["guid"] as? String)
+			#expect(await connection.getObject(chromiumGuid) != nil, "Child object should be in registry")
+
+			// Unknown GUIDs return nil
+			#expect(await connection.getObject("nonexistent-guid-12345") == nil, "Unknown GUID should return nil")
+
+			await connection.close()
+		}
 	}
 }

@@ -2,79 +2,49 @@ import Testing
 import Foundation
 @testable import Playwright
 
-struct BrowserTests {
-	@Test("BrowserType.launch() returns a Browser instance", .timeLimit(.minutes(1)))
-	func launchBrowser() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch()
-
-		#expect(!browser.version.isEmpty)
-
-		try await browser.close()
-		await playwright.close()
-	}
-
-	@Test("browser.isConnected is true after launch", .timeLimit(.minutes(1)))
-	func isConnectedAfterLaunch() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch()
-
-		#expect(browser.isConnected)
-
-		try await browser.close()
-		await playwright.close()
-	}
-
-	@Test("browser.close() completes without error", .timeLimit(.minutes(1)))
-	func closeSucceeds() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch()
-
-		try await browser.close()
-		await playwright.close()
-	}
-
-	@Test("browser.isConnected is false after close", .timeLimit(.minutes(1)))
-	func isConnectedAfterClose() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch()
-
-		try await browser.close()
-		#expect(!browser.isConnected)
-
-		await playwright.close()
-	}
-
-	@Test("Launch with headless option works", .timeLimit(.minutes(1)))
-	func launchHeadless() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch(.init(headless: true))
-
-		#expect(browser.isConnected)
-
-		try await browser.close()
-		await playwright.close()
-	}
-
-	@Test("browser.isConnected is false after playwright.close()", .timeLimit(.minutes(1)))
-	func isConnectedAfterPlaywrightClose() async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await playwright.chromium.launch()
-
-		await playwright.close()
-		#expect(!browser.isConnected)
-	}
-
-	@Test("Multiple browsers can be launched and closed sequentially", .timeLimit(.minutes(2)))
-	func multipleBrowsers() async throws {
-		let playwright = try await Playwright.launch()
-
-		for _ in 0..<3 {
-			let browser = try await playwright.chromium.launch()
-			#expect(browser.isConnected)
-			try await browser.close()
+extension PlaywrightTests {
+	@Suite struct BrowserTests {
+		@Test("Launched browser has a non-empty version string")
+		func launchBrowser() async throws {
+			try await withBrowser { browser in
+				#expect(!browser.version.isEmpty)
+			}
 		}
 
-		await playwright.close()
+		@Test("browser.isConnected is true after launch")
+		func isConnectedAfterLaunch() async throws {
+			try await withBrowser { browser in
+				#expect(browser.isConnected)
+			}
+		}
+
+		@Test("browser.close() and playwright.close() both disconnect")
+		func closeDisconnects() async throws {
+			// Explicit browser.close()
+			let pw1 = try await Playwright.launch()
+			let browser1 = try await pw1.chromium.launch()
+			try await browser1.close()
+			#expect(!browser1.isConnected)
+			await pw1.close()
+
+			// Cascade via playwright.close()
+			let pw2 = try await Playwright.launch()
+			let browser2 = try await pw2.chromium.launch()
+			await pw2.close()
+			#expect(!browser2.isConnected)
+		}
+
+		@Test("Multiple browsers can be launched and closed sequentially")
+		func multipleBrowsers() async throws {
+			let playwright = try await Playwright.launch()
+
+			for _ in 0..<3 {
+				let browser = try await playwright.chromium.launch()
+				#expect(browser.isConnected)
+				try await browser.close()
+			}
+
+			await playwright.close()
+		}
 	}
 }

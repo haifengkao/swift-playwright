@@ -48,6 +48,12 @@ public class ChannelOwner: @unchecked Sendable {
 		state = Mutex(State(parent: parent))
 	}
 
+	/// Called by Connection after the object is created and registered, allowing
+	/// subclasses to resolve cross-references to other objects in the registry.
+	///
+	/// - Parameter resolve: Looks up a registered object by GUID and casts to the expected type.
+	func didCreate(resolve: (String) -> ChannelOwner?) {}
+
 	/// Convenience initializer that derives connection from the parent.
 	convenience init(parent: ChannelOwner, type: String, guid: String, initializer: [String: Any]) {
 		self.init(connection: parent.connection, parent: parent, type: type, guid: guid, initializer: initializer)
@@ -165,5 +171,18 @@ public class ChannelOwner: @unchecked Sendable {
 		}
 
 		return obj
+	}
+
+	/// Sends an RPC call and optionally resolves a typed object from the response.
+	///
+	/// Returns `nil` when the key is missing or the value is null (e.g. `goto` on `about:blank`).
+	///
+	/// - Parameter method: The RPC method name.
+	/// - Parameter params: The parameters to send.
+	/// - Parameter key: The key in the response dict that holds the GUID reference.
+	/// - Returns: The resolved object, or `nil` if not present.
+	func sendAndResolveOptional<T: ChannelOwner>(_ method: String, params: sending [String: Any] = [:], key: String) async throws -> T? {
+		let result = try await send(method, params: params)
+		return await connection.resolveObject(from: result, key: key)
 	}
 }

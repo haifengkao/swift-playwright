@@ -2,59 +2,87 @@ import Testing
 import Foundation
 @testable import Playwright
 
-@Suite(.timeLimit(.minutes(2)))
-struct CrossBrowserTests {
-	private func browserType(named name: String, from playwright: Playwright) -> BrowserType {
-		switch name {
-			case "webkit": playwright.webkit
-			case "firefox": playwright.firefox
-			case "chromium": playwright.chromium
-			default: fatalError("Unknown browser: \(name)")
+extension PlaywrightTests {
+	@Suite struct CrossBrowserTests {
+		@Test("Launch, newPage, and close works", arguments: ["chromium", "firefox", "webkit"])
+		func fullLifecycle(browserName: String) async throws {
+			let playwright = try await Playwright.launch()
+			let browser = try await browserType(named: browserName, from: playwright).launch()
+			#expect(browser.isConnected)
+			#expect(!browser.version.isEmpty)
+
+			let page = try await browser.newPage()
+			#expect(page.url == "about:blank")
+			#expect(!page.isClosed)
+
+			try await page.close()
+			#expect(page.isClosed)
+
+			try await browser.close()
+			#expect(!browser.isConnected)
+
+			await playwright.close()
 		}
-	}
 
-	@Test("Launch, newPage, and close works", arguments: ["chromium", "firefox", "webkit"])
-	func fullLifecycle(browserName: String) async throws {
-		let playwright = try await Playwright.launch()
-		let browser = try await browserType(named: browserName, from: playwright).launch()
-		#expect(browser.isConnected)
-		#expect(!browser.version.isEmpty)
+		@Test("Multiple pages across contexts", arguments: ["chromium", "firefox", "webkit"])
+		func multiplePagesAcrossContexts(browserName: String) async throws {
+			try await withBrowser(browser: browserName) { browser in
+				let context1 = try await browser.newContext()
+				let context2 = try await browser.newContext()
 
-		let page = try await browser.newPage()
-		#expect(page.url == "about:blank")
-		#expect(!page.isClosed)
+				_ = try await context1.newPage()
+				_ = try await context2.newPage()
 
-		try await page.close()
-		#expect(page.isClosed)
+				#expect(context1.pages.count == 1)
+				#expect(context2.pages.count == 1)
+				#expect(browser.contexts.count == 2)
+			}
+		}
 
-		try await browser.close()
-		#expect(!browser.isConnected)
+		@Test("Navigation and title work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		func navigationCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				let response = try await page.goto("https://example.com")
+				#expect(response?.ok == true)
+				#expect(page.url.contains("example.com"))
 
-		await playwright.close()
-	}
+				let title = try await page.title()
+				#expect(title == "Example Domain")
+			}
+		}
 
-	@Test("Multiple pages across contexts", arguments: ["chromium", "firefox", "webkit"])
-	func multiplePagesAcrossContexts(browserName: String) async throws {
-		let playwright = try await Playwright.launch()
-		let browserType = browserType(named: browserName, from: playwright)
+		@Test("Locator actions work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		func locatorActionsCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				try await page.setContent("""
+						<button onclick="document.title = 'clicked'">Click me</button>
+						<input type="text" />
+					""")
 
-		let browser = try await browserType.launch()
+				try await page.locator("button").click()
+				#expect(try await page.title() == "clicked")
 
-		let context1 = try await browser.newContext()
-		let context2 = try await browser.newContext()
+				try await page.locator("input").fill("hello")
+				#expect(try await page.locator("input").inputValue() == "hello")
+			}
+		}
 
-		let page1 = try await context1.newPage()
-		let page2 = try await context2.newPage()
+		@Test("Evaluate and screenshot work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		func evaluateScreenshotCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				try await page.setContent("<h1>Test</h1>")
 
-		#expect(context1.pages.count == 1)
-		#expect(context2.pages.count == 1)
-		#expect(browser.contexts.count == 2)
+				let result = try await page.evaluate("1 + 1")
+				#expect(result as? Int == 2)
 
-		try await page1.close()
-		try await page2.close()
-		try await context1.close()
-		try await context2.close()
-		try await browser.close()
-		await playwright.close()
+				let screenshot = try await page.screenshot()
+				#expect(!screenshot.isEmpty)
+				// PNG magic bytes
+				#expect(screenshot[0] == 0x89)
+				#expect(screenshot[1] == 0x50) // 'P'
+				#expect(screenshot[2] == 0x4E) // 'N'
+				#expect(screenshot[3] == 0x47) // 'G'
+			}
+		}
 	}
 }

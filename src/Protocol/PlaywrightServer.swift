@@ -37,6 +37,9 @@ final class PlaywrightServer: Sendable {
 		self.continuation = continuation
 	}
 
+	/// Whether the server process is currently running.
+	var isRunning: Bool { process.isRunning }
+
 	deinit { close() }
 
 	/// Launches the Playwright server as a child process.
@@ -129,6 +132,7 @@ final class PlaywrightServer: Sendable {
 			stderrHandle.closeFile()
 
 			process.terminate()
+			process.waitUntilExit()
 		}
 	}
 }

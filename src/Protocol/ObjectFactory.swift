@@ -13,7 +13,10 @@ enum ObjectFactory {
 			case "Page": Page(parent: parent, type: type, guid: guid, initializer: initializer)
 			case "Frame": Frame(parent: parent, type: type, guid: guid, initializer: initializer)
 			case "Browser": Browser(parent: parent, type: type, guid: guid, initializer: initializer)
+			case "Request": Request(parent: parent, type: type, guid: guid, initializer: initializer)
+			case "Response": Response(parent: parent, type: type, guid: guid, initializer: initializer)
 			case "BrowserType": BrowserType(parent: parent, type: type, guid: guid, initializer: initializer)
+			case "ElementHandle": ElementHandle(parent: parent, type: type, guid: guid, initializer: initializer)
 			case "BrowserContext": BrowserContext(parent: parent, type: type, guid: guid, initializer: initializer)
 			default: ChannelOwner(parent: parent, type: type, guid: guid, initializer: initializer)
 		}
