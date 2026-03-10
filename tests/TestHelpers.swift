@@ -5,8 +5,18 @@ import Foundation
 /// Base suite for all Playwright integration tests.
 ///
 /// Extend with nested `@Suite`s to inherit the shared time limit.
+#if CI
+@Suite(.timeLimit(.minutes(2)), .serialized)
+#else
 @Suite(.timeLimit(.minutes(2)))
+#endif
 struct PlaywrightTests {}
+
+#if canImport(Darwin)
+let isApplePlatform = true
+#else
+let isApplePlatform = false
+#endif
 
 /// Resolves a browser name string to the corresponding `BrowserType` instance.
 func browserType(named name: String, from playwright: Playwright) -> BrowserType {

@@ -52,6 +52,8 @@ let png = try await page.screenshot()
 
 try await browser.close()
 await playwright.close()
+```
+
 ## How It Works
 
 `swift-playwright` works by communicating with the Node.js Playwright server, same as the official Python, Java, and .NET drivers:

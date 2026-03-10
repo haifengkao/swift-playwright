@@ -185,8 +185,8 @@ extension PlaywrightTests {
 			try await withPage { page in
 				let result = try await page.evaluate("new URL('https://example.com/path?q=1')")
 				let url = try #require(result as? URL)
-				#expect(url.host == "example.com")
-				#expect(url.path == "/path")
+				#expect(url.host() == "example.com")
+				#expect(url.path() == "/path")
 			}
 		}
 
@@ -248,7 +248,9 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("page.evaluate returns shared references correctly")
+		// Linux's swift-corelibs-foundation bridges NSMutableDictionary to a Swift
+		// dictionary on retrieval, so shared-reference identity (===) is lost.
+		@Test("page.evaluate returns shared references correctly", .enabled(if: isApplePlatform))
 		func evaluateSharedRef() async throws {
 			try await withPage { page in
 				let result = try await page.evaluate("""
@@ -257,11 +259,11 @@ extension PlaywrightTests {
 						return { a: shared, b: shared };
 					}
 					""")
-				let dict = result as? [String: Any]
-				let a = dict?["a"]
-				let b = dict?["b"]
-				#expect((a as? [String: Any])?["x"] as? Int == 1)
-				#expect(a as AnyObject === b as AnyObject)
+				let dict = try #require(result as? NSDictionary)
+				let a = try #require(dict["a"] as? NSDictionary)
+				let b = try #require(dict["b"] as? NSDictionary)
+				#expect(a["x"] as? Int == 1)
+				#expect(a === b)
 			}
 		}
 
@@ -287,7 +289,10 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("page.evaluate handles circular NSMutableArray argument")
+		// On Linux, NSArray subscript bridges elements via _StructBridgeable, breaking
+		// ObjectIdentifier-based cycle detection. The depth limit prevents a crash but
+		// can't preserve the circular structure.
+		@Test("page.evaluate handles circular NSMutableArray argument", .enabled(if: isApplePlatform))
 		func evaluateCircularArrayArg() async throws {
 			try await withPage { page in
 				let a = NSMutableArray(array: [1])
@@ -300,7 +305,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("page.evaluate handles circular NSMutableDictionary argument")
+		@Test("page.evaluate handles circular NSMutableDictionary argument", .enabled(if: isApplePlatform))
 		func evaluateCircularDictArg() async throws {
 			try await withPage { page in
 				let obj = NSMutableDictionary()
@@ -310,6 +315,7 @@ extension PlaywrightTests {
 				#expect(result as? Bool == true)
 			}
 		}
+
 
 		@Test("page.evaluate preserves shared reference identity in arguments")
 		func evaluateSharedRefArg() async throws {
@@ -433,7 +439,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("page.evaluate resolves circular references")
+		@Test("page.evaluate resolves circular references", .enabled(if: isApplePlatform))
 		func evaluateCircularRef() async throws {
 			try await withPage { page in
 				// Self-referential array: a[0] === a

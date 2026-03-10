@@ -56,12 +56,19 @@ enum EvaluateSerializer {
 		guard let value else { return ["v": "undefined"] }
 
 		// Bool, Int, and Double all bridge to NSNumber when erased to Any.
-		// NSNumber(0/1) ambiguously matches `as Bool`, so we use CFBooleanGetTypeID
-		// to distinguish real booleans from numeric 0/1 (e.g. from JSONSerialization).
+		// Check Bool first: on macOS, NSNumber(0/1) ambiguously matches `as? Bool`,
+		// so we use CFBooleanGetTypeID to distinguish. On Linux, swift-corelibs-foundation
+		// preserves the Bool type, so `type(of:) == Bool.self` is sufficient.
 		if let number = value as? NSNumber {
+			#if canImport(Darwin)
 			if CFGetTypeID(number) == CFBooleanGetTypeID() {
 				return ["b": number.boolValue]
 			}
+			#else
+			if type(of: value) == Bool.self {
+				return ["b": number.boolValue]
+			}
+			#endif
 			if let n = value as? Int { return ["n": n] }
 			let d = number.doubleValue
 			if d.isNaN { return ["v": "NaN"] }
@@ -71,22 +78,38 @@ enum EvaluateSerializer {
 			return ["n": d]
 		}
 
+		// Check NSArray/NSDictionary identity *before* bridging to [Any]/[String: Any],
+		// so we can detect shared/circular references via ObjectIdentifier.
+		// Note: circular NS containers are unsupported on Linux (Foundation crashes internally).
+		if let nsArr = value as? NSArray {
+			let (alreadyVisited, id) = visitor.visit(nsArr)
+			if alreadyVisited { return ["ref": id] }
+			return try ["a": (0..<nsArr.count).map { try serializeValue(nsArr[$0], visitor: visitor) }, "id": id]
+		}
+		if let nsDict = value as? NSDictionary {
+			let (alreadyVisited, id) = visitor.visit(nsDict)
+			if alreadyVisited { return ["ref": id] }
+			let serialized: [[String: Any]] = try nsDict.allKeys.map { key in
+				guard let k = key as? String else {
+					throw PlaywrightError.invalidArgument("Dictionary with non-String keys is not supported")
+				}
+				return try ["k": k, "v": serializeValue(nsDict[key], visitor: visitor)] as [String: Any]
+			}
+			return ["o": serialized, "id": id]
+		}
+
 		switch value {
 			case is NSNull: return ["v": "null"]
 			case let s as String: return ["s": s]
 			case let url as URL: return ["u": url.absoluteString]
 			case let date as Date: return ["d": iso8601.string(from: date)]
 			case let arr as [Any]:
-				let (alreadyVisited, id) = visitor.visit(value as AnyObject)
-				if alreadyVisited { return ["ref": id] }
-				return try ["a": arr.map { try serializeValue($0, visitor: visitor) }, "id": id]
+				return try ["a": arr.map { try serializeValue($0, visitor: visitor) }, "id": 0]
 			case let dict as [String: Any]:
-				let (alreadyVisited, id) = visitor.visit(value as AnyObject)
-				if alreadyVisited { return ["ref": id] }
 				let serialized = try dict.map { k, v in
 					try ["k": k, "v": serializeValue(v, visitor: visitor)] as [String: Any]
 				}
-				return ["o": serialized, "id": id]
+				return ["o": serialized, "id": 0]
 			default:
 				throw PlaywrightError.invalidArgument("Unsupported type of argument: \(type(of: value))")
 		}

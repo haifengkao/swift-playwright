@@ -100,6 +100,7 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// - Throws: `PlaywrightError` if navigation fails or times out.
 	///
 	/// See: https://playwright.dev/docs/api/class-page#page-goto
+	@discardableResult
 	public func goto(_ url: String, timeout: Duration? = nil, waitUntil: WaitUntilState? = nil, referer: String? = nil) async throws -> Response? {
 		try await mainFrame.goto(url, timeout: timeout, waitUntil: waitUntil, referer: referer)
 	}

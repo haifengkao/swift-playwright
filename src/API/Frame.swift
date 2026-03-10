@@ -96,6 +96,7 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// - Throws: `PlaywrightError` if navigation fails or times out.
 	///
 	/// See: https://playwright.dev/docs/api/class-frame#frame-goto
+	@discardableResult
 	public func goto(_ url: String, timeout: Duration? = nil, waitUntil: WaitUntilState? = nil, referer: String? = nil) async throws -> Response? {
 		var params: [String: Any] = [
 			"url": url,
@@ -328,7 +329,7 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// See: https://playwright.dev/docs/api/class-frame#frame-evaluate
 	@_disfavoredOverload
 	public func evaluate(_ expression: String, arg: Any? = nil) async throws -> Any? {
-		let params: [String: Any] = try [
+		nonisolated(unsafe) let params: [String: Any] = try [
 			"expression": expression,
 			"arg": EvaluateSerializer.serializeArgument(arg),
 		]

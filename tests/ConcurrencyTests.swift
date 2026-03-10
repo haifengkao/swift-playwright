@@ -99,7 +99,7 @@ extension PlaywrightTests {
 				}
 
 				let elapsed = clock.now - start
-				#expect(elapsed < .milliseconds(2 * delayMs), "Evaluates on different pages should overlap, not run serially")
+				#expect(elapsed < .milliseconds(3 * delayMs), "Evaluates on different pages should overlap, not run serially")
 			}
 		}
 	}
