@@ -2,10 +2,10 @@ import Testing
 import Foundation
 @testable import Playwright
 
-/// Base suite for all Playwright integration tests.
-///
-/// Extend with nested `@Suite`s to inherit the shared time limit.
-#if CI
+// Base suite for all Playwright integration tests.
+//
+// Extend with nested `@Suite`s to inherit the shared time limit.
+#if CI && !canImport(Darwin)
 @Suite(.timeLimit(.minutes(2)), .serialized)
 #else
 @Suite(.timeLimit(.minutes(2)))

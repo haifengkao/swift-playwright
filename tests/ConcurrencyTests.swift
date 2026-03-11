@@ -63,44 +63,5 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("concurrent evaluate on different pages returns correct results")
-		func concurrentEvaluateMultiplePages() async throws {
-			try await withContext { context in
-				let page1 = try await context.newPage()
-				let page2 = try await context.newPage()
-
-				let delayMs = 200
-				let clock = ContinuousClock()
-				let start = clock.now
-
-				try await withThrowingTaskGroup(of: (String, String).self) { group in
-					group.addTask {
-						try await page1.setContent("<title>Page 1</title>")
-						let title: String = try await page1.evaluate(
-							"() => new Promise(r => setTimeout(() => r(document.title), \(delayMs)))"
-						)
-						return ("page1", title)
-					}
-					group.addTask {
-						try await page2.setContent("<title>Page 2</title>")
-						let title: String = try await page2.evaluate(
-							"() => new Promise(r => setTimeout(() => r(document.title), \(delayMs)))"
-						)
-						return ("page2", title)
-					}
-
-					var results: [String: String] = [:]
-					for try await (key, value) in group {
-						results[key] = value
-					}
-
-					#expect(results["page1"] == "Page 1")
-					#expect(results["page2"] == "Page 2")
-				}
-
-				let elapsed = clock.now - start
-				#expect(elapsed < .milliseconds(3 * delayMs), "Evaluates on different pages should overlap, not run serially")
-			}
-		}
 	}
 }

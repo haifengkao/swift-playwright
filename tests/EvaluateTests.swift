@@ -248,8 +248,8 @@ extension PlaywrightTests {
 			}
 		}
 
-		// Linux's swift-corelibs-foundation bridges NSMutableDictionary to a Swift
-		// dictionary on retrieval, so shared-reference identity (===) is lost.
+		/// Linux's swift-corelibs-foundation bridges NSMutableDictionary to a Swift
+		/// dictionary on retrieval, so shared-reference identity (===) is lost.
 		@Test("page.evaluate returns shared references correctly", .enabled(if: isApplePlatform))
 		func evaluateSharedRef() async throws {
 			try await withPage { page in
@@ -289,9 +289,9 @@ extension PlaywrightTests {
 			}
 		}
 
-		// On Linux, NSArray subscript bridges elements via _StructBridgeable, breaking
-		// ObjectIdentifier-based cycle detection. The depth limit prevents a crash but
-		// can't preserve the circular structure.
+		/// On Linux, NSArray subscript bridges elements via _StructBridgeable, breaking
+		/// ObjectIdentifier-based cycle detection. The depth limit prevents a crash but
+		/// can't preserve the circular structure.
 		@Test("page.evaluate handles circular NSMutableArray argument", .enabled(if: isApplePlatform))
 		func evaluateCircularArrayArg() async throws {
 			try await withPage { page in
@@ -315,7 +315,6 @@ extension PlaywrightTests {
 				#expect(result as? Bool == true)
 			}
 		}
-
 
 		@Test("page.evaluate preserves shared reference identity in arguments")
 		func evaluateSharedRefArg() async throws {
@@ -446,21 +445,18 @@ extension PlaywrightTests {
 				let arrayResult = try await page.evaluate("""
 					() => { const a = [1]; a.push(a); return a; }
 					""")
-				let arr = try #require(arrayResult as? [Any])
+				let arr = try #require(arrayResult as? NSMutableArray)
 				#expect(arr.count == 2)
 				#expect(arr[0] as? Int == 1)
-				// arr[1] is the same array (circular ref) — verify identity is preserved
-				let inner = try #require(arr[1] as? NSMutableArray)
-				#expect(inner === (arrayResult as AnyObject))
+				#expect(arr[1] as? NSMutableArray === arr)
 
 				// Self-referential object: o.self === o
 				let objResult = try await page.evaluate("""
 					() => { const o = { v: 42 }; o.self = o; return o; }
 					""")
-				let obj = try #require(objResult as? [String: Any])
+				let obj = try #require(objResult as? NSMutableDictionary)
 				#expect(obj["v"] as? Int == 42)
-				let selfRef = try #require(obj["self"] as? NSMutableDictionary)
-				#expect(selfRef === (objResult as AnyObject))
+				#expect(obj["self"] as? NSMutableDictionary === obj)
 			}
 		}
 	}
