@@ -311,11 +311,39 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		try await queryValue("isEditable", selector, strict: strict, timeout: timeout, fallback: false)
 	}
 
-	func waitForSelector(_ selector: String, state: WaitForSelectorState = .attached, strict: Bool = true, timeout: Duration? = nil) async throws -> ElementHandle {
+	/// Waits for an element matching the selector to appear in the DOM.
+	///
+	/// See: https://playwright.dev/docs/api/class-frame#frame-wait-for-selector
+	public func waitForSelector(_ selector: String, state: WaitForSelectorState = .visible, strict: Bool = false, timeout: Duration? = nil) async throws -> ElementHandle? {
 		var params = selectorParams(selector, strict: strict, timeout: timeout)
 		params["state"] = state.rawValue
 
-		return try await sendAndResolve("waitForSelector", params: params, key: "element")
+		return try await sendAndResolveOptional("waitForSelector", params: params, key: "element")
+	}
+
+	/// Returns the first element matching the selector, or `nil` if no elements match.
+	///
+	/// See: https://playwright.dev/docs/api/class-frame#frame-query-selector
+	public func querySelector(_ selector: String, strict: Bool? = nil) async throws -> ElementHandle? {
+		var params: [String: Any] = ["selector": selector]
+		if let strict { params["strict"] = strict }
+
+		return try await sendAndResolveOptional("querySelector", params: params, key: "element")
+	}
+
+	/// Returns all elements matching the selector.
+	///
+	/// See: https://playwright.dev/docs/api/class-frame#frame-query-selector-all
+	public func querySelectorAll(_ selector: String) async throws -> [ElementHandle] {
+		let result = try await send("querySelectorAll", params: ["selector": selector])
+		return await connection.resolveArray(from: result, key: "elements")
+	}
+
+	/// Waits for the given duration (protocol-level sleep).
+	///
+	/// See: https://playwright.dev/docs/api/class-frame#frame-wait-for-timeout
+	public func waitForTimeout(_ timeout: Duration) async throws {
+		_ = try await send("waitForTimeout", params: ["waitTimeout": timeout.milliseconds])
 	}
 
 	// MARK: - Evaluate

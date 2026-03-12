@@ -27,7 +27,7 @@ extension PlaywrightTests {
 			let launchResult = try await connection.sendMessage(
 				guid: chromiumGuid,
 				method: "launch",
-				params: ["headless": true, "timeout": timeoutMs()] as [String: Any]
+				params: ["headless": true, "timeout": timeoutMs(.seconds(180))] as [String: Any]
 			)
 
 			let browserRef = try #require(launchResult["browser"] as? [String: Any])

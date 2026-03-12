@@ -62,6 +62,28 @@ func withContext(browser browserName: String = "chromium", _ body: (BrowserConte
 	}
 }
 
+/// Launches a Playwright server with a persistent context, runs the body, then ensures cleanup.
+func withPersistentContext(browser browserName: String = "chromium", _ body: (BrowserContext) async throws -> Void) async throws {
+	let playwright = try await Playwright.launch()
+	let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent("pw-test-\(UUID().uuidString)").path
+	defer { try? FileManager.default.removeItem(atPath: tmpDir) }
+
+	var caughtError: (any Error)?
+	do {
+		let context = try await browserType(named: browserName, from: playwright).launchPersistentContext(userDataDir: tmpDir)
+		do {
+			try await body(context)
+		} catch {
+			caughtError = error
+		}
+		try? await context.close()
+	} catch {
+		if caughtError == nil { caughtError = error }
+	}
+	await playwright.close()
+	if let caughtError { throw caughtError }
+}
+
 /// Launches a Playwright server, browser, and page, runs the body, then ensures cleanup.
 func withPage(browser browserName: String = "chromium", _ body: (Page) async throws -> Void) async throws {
 	try await withBrowser(browser: browserName) { browser in

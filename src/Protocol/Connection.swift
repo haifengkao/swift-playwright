@@ -54,6 +54,26 @@ actor Connection: Sendable {
 	/// - Returns: The `result` dictionary from the server's response.
 	func sendMessage(guid: String, method: String, params: sending [String: Any] = [:]) async throws -> sending [String: Any] {
 		guard !isClosed else { throw PlaywrightError.connectionClosed }
+		let (id, data) = try buildMessage(guid: guid, method: method, params: params)
+
+		return try await withCheckedThrowingContinuation { continuation in
+			callbacks[id] = continuation
+			transport.send(data)
+		}
+	}
+
+	/// Sends a JSON-RPC message without waiting for a response (fire-and-forget).
+	///
+	/// Used for `updateSubscription` messages that don't need a response.
+	func sendNoReply(guid: String, method: String, params: [String: Any] = [:]) {
+		guard !isClosed else { return }
+		if let (_, data) = try? buildMessage(guid: guid, method: method, params: params) {
+			transport.send(data)
+		}
+	}
+
+	/// Builds and serializes a JSON-RPC message, returning the assigned ID and serialized data.
+	private func buildMessage(guid: String, method: String, params: [String: Any]) throws -> (Int, Data) {
 		lastId += 1
 		let id = lastId
 
@@ -69,12 +89,7 @@ actor Connection: Sendable {
 			] as [String: Any],
 		]
 
-		let data = try JSONSerialization.data(withJSONObject: message)
-
-		return try await withCheckedThrowingContinuation { continuation in
-			callbacks[id] = continuation
-			transport.send(data)
-		}
+		return try (id, JSONSerialization.data(withJSONObject: message))
 	}
 
 	/// Looks up a protocol object by GUID.
@@ -95,6 +110,18 @@ actor Connection: Sendable {
 		else { return nil }
 
 		return obj
+	}
+
+	/// Resolves an array of GUID references from a dictionary.
+	///
+	/// Expects `dict[key]` to be `[{"guid": "some@1"}, {"guid": "some@2"}, ...]`.
+	func resolveArray<T: ChannelOwner>(from dict: [String: Any], key: String) -> [T] {
+		guard let refs = dict[key] as? [[String: Any]] else { return [] }
+
+		return refs.compactMap { ref in
+			guard let guid = ref["guid"] as? String else { return nil }
+			return objects[guid] as? T
+		}
 	}
 
 	/// Shuts down the connection and underlying transport.
@@ -195,10 +222,6 @@ actor Connection: Sendable {
 	///
 	/// The server sends `{"page": {"guid": "page@1"}}` — this replaces
 	/// those references with the actual `ChannelOwner` instances.
-	///
-	/// - Note: Only resolves top-level references for now. Nested GUID
-	///   resolution (recursive) will be needed for v0.3 events like
-	///   network interception and console messages.
 	private func resolveGuidReferences(in params: [String: Any]) -> [String: Any] {
 		var resolved: [String: Any]?
 		for (key, value) in params {

@@ -38,6 +38,8 @@ public final class BrowserContext: ChannelOwner, @unchecked Sendable {
 		browser = parent as? Browser
 		super.init(connection: connection, parent: parent, type: type, guid: guid, initializer: initializer)
 
+		browser?.addContext(self)
+
 		on("close") { [weak self] _ in
 			guard let self else { return }
 			self.browser?.removeContext(self)
@@ -46,6 +48,11 @@ public final class BrowserContext: ChannelOwner, @unchecked Sendable {
 		on("page") { [weak self] params in
 			guard let self, let page = params["page"] as? Page else { return }
 			self.state.withLock { $0.pages.append(page) }
+		}
+
+		on("dialog") { params in
+			guard let dialog = params["dialog"] as? Dialog, let page = dialog.parent as? Page else { return }
+			page.dispatchDialog(dialog)
 		}
 	}
 

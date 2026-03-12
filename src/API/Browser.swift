@@ -53,9 +53,7 @@ public final class Browser: ChannelOwner, @unchecked Sendable {
 	///
 	/// See: https://playwright.dev/docs/api/class-browser#browser-new-context
 	public func newContext() async throws -> BrowserContext {
-		let context: BrowserContext = try await sendAndResolve("newContext", key: "context")
-		state.withLock { $0.contexts.append(context) }
-		return context
+		try await sendAndResolve("newContext", key: "context")
 	}
 
 	/// Creates a new page in a new browser context (convenience shorthand).
@@ -82,6 +80,11 @@ public final class Browser: ChannelOwner, @unchecked Sendable {
 		context.setOwned()
 
 		return page
+	}
+
+	/// Adds a context to this browser's context list.
+	func addContext(_ context: BrowserContext) {
+		state.withLock { $0.contexts.append(context) }
 	}
 
 	/// Removes a context from this browser's context list.

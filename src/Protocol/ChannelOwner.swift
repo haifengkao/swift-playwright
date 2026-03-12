@@ -52,7 +52,7 @@ public class ChannelOwner: @unchecked Sendable {
 	/// subclasses to resolve cross-references to other objects in the registry.
 	///
 	/// - Parameter resolve: Looks up a registered object by GUID and casts to the expected type.
-	func didCreate(resolve: (String) -> ChannelOwner?) {}
+	func didCreate(resolve _: (String) -> ChannelOwner?) {}
 
 	/// Convenience initializer that derives connection from the parent.
 	convenience init(parent: ChannelOwner, type: String, guid: String, initializer: [String: Any]) {
@@ -141,6 +141,11 @@ public class ChannelOwner: @unchecked Sendable {
 	/// - Returns: The result dictionary from the server response.
 	func send(_ method: String, params: sending [String: Any] = [:]) async throws -> sending [String: Any] {
 		try await connection.sendMessage(guid: guid, method: method, params: params)
+	}
+
+	/// Sends a message without waiting for a response (fire-and-forget).
+	func sendNoReply(_ method: String, params: sending [String: Any] = [:]) async {
+		await connection.sendNoReply(guid: guid, method: method, params: params)
 	}
 
 	/// Sends a `"close"` message to the server, guarding against double-close.

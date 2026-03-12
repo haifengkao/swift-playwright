@@ -14,6 +14,16 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// The main frame of the page.
 	private let mainFrame: Frame
 
+	/// Keyboard input API.
+	///
+	/// See: https://playwright.dev/docs/api/class-keyboard
+	public private(set) var keyboard: Keyboard!
+
+	/// Mouse input API.
+	///
+	/// See: https://playwright.dev/docs/api/class-mouse
+	public private(set) var mouse: Mouse!
+
 	/// The browser context that owns this page.
 	///
 	/// Every page belongs to exactly one context — the parent in the protocol
@@ -22,9 +32,18 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// the page from `context.pages`.
 	public let context: BrowserContext
 
+	private struct RouteHandler {
+		let pattern: String
+		let regex: NSRegularExpression
+		let handler: @Sendable (Route) async throws -> Void
+	}
+
 	private struct State: ~Copyable {
 		var isClosed = false
 		var ownedContext: BrowserContext?
+		var routeHandlers: [RouteHandler] = []
+		var dialogHandlers: [@Sendable (Dialog) async -> Void] = []
+		var downloadHandlers: [@Sendable (Download) async -> Void] = []
 	}
 
 	private let state = Mutex(State())
@@ -60,12 +79,33 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 
 		super.init(connection: connection, parent: parent, type: type, guid: guid, initializer: initializer)
 
+		mouse = Mouse(self)
 		mainFrame.page = self
+		keyboard = Keyboard(self)
 
 		on("close") { [weak self] _ in
 			guard let self else { return }
-			self.state.withLock { $0.isClosed = true }
+			self.state.withLock {
+				$0.isClosed = true
+				$0.routeHandlers.removeAll()
+				$0.dialogHandlers.removeAll()
+				$0.downloadHandlers.removeAll()
+			}
 			self.context.removePage(self)
+		}
+
+		on("route") { [weak self] params in
+			guard let self, let route = params["route"] as? Route else { return }
+			self.dispatchRoute(route)
+		}
+
+		on("download") { [weak self] params in
+			guard let self,
+			      let url = params["url"] as? String,
+			      let artifact = params["artifact"] as? Artifact,
+			      let suggestedFilename = params["suggestedFilename"] as? String
+			else { return }
+			self.dispatchDownload(Download(url: url, suggestedFilename: suggestedFilename, artifact: artifact))
 		}
 	}
 
@@ -168,6 +208,236 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// See: https://playwright.dev/docs/api/class-page#page-set-content
 	public func setContent(_ html: String, timeout: Duration? = nil, waitUntil: WaitUntilState? = nil) async throws {
 		try await mainFrame.setContent(html, timeout: timeout, waitUntil: waitUntil)
+	}
+
+	// MARK: - Events
+
+	/// Registers a handler for dialog events (alert, confirm, prompt, beforeunload).
+	///
+	/// If no handler is registered, dialogs are auto-dismissed.
+	///
+	/// ```swift
+	/// await page.onDialog { dialog in
+	///     print(dialog.message)
+	///     try await dialog.accept()
+	/// }
+	/// ```
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-event-dialog
+	public func onDialog(_ handler: @escaping @Sendable (Dialog) async -> Void) async {
+		let isFirst = state.withLock { state in
+			let wasEmpty = state.dialogHandlers.isEmpty
+			state.dialogHandlers.append(handler)
+			return wasEmpty
+		}
+
+		if isFirst { await sendNoReply("updateSubscription", params: ["event": "dialog", "enabled": true]) }
+	}
+
+	/// Called by BrowserContext when a dialog event is received for this page.
+	func dispatchDialog(_ dialog: Dialog) {
+		let handlers = state.withLock { $0.dialogHandlers }
+		if handlers.isEmpty {
+			// Auto-dismiss: accept for beforeunload, dismiss for others
+			Task<Void, Never> {
+				if dialog.dialogType == .beforeunload {
+					try? await dialog.accept()
+				} else {
+					try? await dialog.dismiss()
+				}
+			}
+		} else {
+			for handler in handlers {
+				Task<Void, Never> { await handler(dialog) }
+			}
+		}
+	}
+
+	// MARK: - Downloads
+
+	/// Registers a handler for download events.
+	///
+	/// Downloads are triggered by page actions (e.g., clicking a link with a `download` attribute).
+	///
+	/// ```swift
+	/// page.onDownload { download in
+	///     print(download.suggestedFilename)
+	///     try await download.saveAs("/tmp/\(download.suggestedFilename)")
+	/// }
+	/// ```
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-event-download
+	public func onDownload(_ handler: @escaping @Sendable (Download) async -> Void) {
+		state.withLock { $0.downloadHandlers.append(handler) }
+	}
+
+	/// Called when a download event is received for this page.
+	func dispatchDownload(_ download: Download) {
+		let handlers = state.withLock { $0.downloadHandlers }
+		for handler in handlers {
+			Task<Void, Never> { await handler(download) }
+		}
+	}
+
+	// MARK: - Routing
+
+	/// Registers a handler to intercept network requests matching the given URL pattern.
+	///
+	/// ```swift
+	/// try await page.route("**/*.png") { route in
+	///     try await route.abort()
+	/// }
+	/// ```
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-route
+	public func route(_ url: String, handler: @escaping @Sendable (Route) async throws -> Void) async throws {
+		let regex = try NSRegularExpression(pattern: Self.globToRegex(url))
+		state.withLock { $0.routeHandlers.append(RouteHandler(pattern: url, regex: regex, handler: handler)) }
+		try await updateInterceptionPatterns()
+	}
+
+	/// Removes a previously registered route handler for the given URL pattern.
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-unroute
+	public func unroute(_ url: String) async throws {
+		state.withLock { $0.routeHandlers.removeAll { $0.pattern == url } }
+		try await updateInterceptionPatterns()
+	}
+
+	private func updateInterceptionPatterns() async throws {
+		let patterns = state.withLock { $0.routeHandlers.map { ["glob": $0.pattern] } }
+		_ = try await send("setNetworkInterceptionPatterns", params: ["patterns": patterns])
+	}
+
+	/// Called when a route event is received for this page.
+	func dispatchRoute(_ route: Route) {
+		let handlers = state.withLock { $0.routeHandlers }
+		let url = route.request?.url ?? ""
+
+		// Iterate in reverse so later-registered routes take precedence (matching Playwright behavior)
+		for h in handlers.reversed() {
+			if globMatches(regex: h.regex, url: url) {
+				Task<Void, Never> { [handler = h.handler] in
+					do { try await handler(route) }
+					catch { try? await route.abort() }
+				}
+				return
+			}
+		}
+
+		// No matching handler — let the request through
+		Task<Void, Never> { try? await route.continue_() }
+	}
+
+	/// Matches a precompiled glob regex against a URL.
+	private func globMatches(regex: NSRegularExpression, url: String) -> Bool {
+		regex.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)) != nil
+	}
+
+	/// Converts a Playwright glob pattern to a regex string.
+	///
+	/// Ported from Playwright's canonical TypeScript implementation in
+	/// `playwright-core/src/utils/isomorphic/urlMatch.ts`.
+	///
+	/// Supports `*` (any chars except `/`), `**` (any chars including `/`),
+	/// `{a,b}` alternation groups, and `\` escaping. `?` is treated as a
+	/// literal character (not a wildcard). `[…]` is treated as literal.
+	static func globToRegex(_ glob: String) -> String {
+		var tokens = ["^"]
+		var inGroup = false
+		var i = glob.startIndex
+		let escapedChars: Set<Character> = ["$", "^", "+", ".", "*", "(", ")", "|", "\\", "?", "{", "}", "[", "]"]
+
+		while i < glob.endIndex {
+			let c = glob[i]
+
+			// Backslash escaping
+			if c == "\\" {
+				let next = glob.index(after: i)
+				if next < glob.endIndex {
+					let char = glob[next]
+					tokens.append(escapedChars.contains(char) ? "\\\(char)" : String(char))
+					i = glob.index(after: next)
+					continue
+				}
+			}
+
+			// Star handling
+			if c == "*" {
+				let charBefore: Character? = i > glob.startIndex ? glob[glob.index(before: i)] : nil
+				var starCount = 1
+				var j = glob.index(after: i)
+				while j < glob.endIndex && glob[j] == "*" {
+					starCount += 1
+					j = glob.index(after: j)
+				}
+				i = glob.index(before: j) // i now points at the last *
+
+				if starCount > 1 {
+					let nextIdx = glob.index(after: i)
+					let charAfter: Character? = nextIdx < glob.endIndex ? glob[nextIdx] : nil
+					if charAfter == "/" {
+						if charBefore == "/" { tokens.append("((.+/)|)") }
+						else { tokens.append("(.*/)") }
+
+						i = glob.index(after: nextIdx)
+					} else {
+						tokens.append("(.*)")
+						i = glob.index(after: i)
+					}
+				} else {
+					tokens.append("([^/]*)")
+					i = glob.index(after: i)
+				}
+				continue
+			}
+
+			switch c {
+				case ",": tokens.append(inGroup ? "|" : "\\,")
+				case "{":
+					inGroup = true
+					tokens.append("(")
+				case "}":
+					inGroup = false
+					tokens.append(")")
+				default: tokens.append(escapedChars.contains(c) ? "\\\(c)" : String(c))
+			}
+
+			i = glob.index(after: i)
+		}
+
+		tokens.append("$")
+		return tokens.joined()
+	}
+
+	// MARK: - Element Queries
+
+	/// Returns the first element matching the selector, or `nil` if no elements match.
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-query-selector
+	public func querySelector(_ selector: String, strict: Bool? = nil) async throws -> ElementHandle? {
+		try await mainFrame.querySelector(selector, strict: strict)
+	}
+
+	/// Returns all elements matching the selector.
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-query-selector-all
+	public func querySelectorAll(_ selector: String) async throws -> [ElementHandle] {
+		try await mainFrame.querySelectorAll(selector)
+	}
+
+	/// Waits for an element matching the selector to appear in the DOM.
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-wait-for-selector
+	public func waitForSelector(_ selector: String, state: WaitForSelectorState = .visible, strict: Bool = false, timeout: Duration? = nil) async throws -> ElementHandle? {
+		try await mainFrame.waitForSelector(selector, state: state, strict: strict, timeout: timeout)
+	}
+
+	/// Waits for the given duration (protocol-level sleep).
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-wait-for-timeout
+	public func waitForTimeout(_ timeout: Duration) async throws {
+		try await mainFrame.waitForTimeout(timeout)
 	}
 
 	// MARK: - Evaluate

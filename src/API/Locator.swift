@@ -357,7 +357,9 @@ public struct Locator: LocatorFactory, Sendable {
 		timeout: Duration? = nil, path: String? = nil
 	) async throws -> Data {
 		let deadline = ContinuousClock.now + (timeout ?? defaultTimeout)
-		let handle = try await frame.waitForSelector(selector, timeout: timeout)
+		guard let handle = try await frame.waitForSelector(selector, state: .attached, strict: true, timeout: timeout) else {
+			throw PlaywrightError.serverError("Element not found for selector: \(selector)")
+		}
 		let remaining = max(deadline - .now, .zero)
 
 		defer { Task { try? await handle.dispose() } }

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Synchronization
 @testable import Playwright
 
 extension PlaywrightTests {
@@ -82,6 +83,130 @@ extension PlaywrightTests {
 				#expect(screenshot[1] == 0x50) // 'P'
 				#expect(screenshot[2] == 0x4E) // 'N'
 				#expect(screenshot[3] == 0x47) // 'G'
+			}
+		}
+
+		// MARK: - v0.4 Cross-Browser Tests
+
+		@Test("querySelector and querySelectorAll work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		func querySelectorCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				try await page.setContent("<ul><li>A</li><li>B</li><li>C</li></ul>")
+
+				let item = try await page.querySelector("li")
+				#expect(item != nil)
+
+				let items = try await page.querySelectorAll("li")
+				#expect(items.count == 3)
+			}
+		}
+
+		@Test("ElementHandle query methods work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		func elementHandleCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				try await page.setContent("""
+					<div class="card"><h2>Title</h2><a href="/link">Link</a></div>
+					""")
+
+				let card = try await page.querySelector(".card")!
+				let h2 = try await card.querySelector("h2")!
+				#expect(try await h2.innerText() == "Title")
+
+				let link = try await card.querySelector("a")!
+				#expect(try await link.getAttribute("href") == "/link")
+			}
+		}
+
+		@Test("Keyboard and mouse work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		func keyboardMouseCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				try await page.setContent("""
+					<input type='text' />
+					<button onclick="document.title = 'clicked'">Click me</button>
+					""")
+
+				// Keyboard: type into input
+				try await page.locator("input").focus()
+				try await page.keyboard.type("hello")
+				#expect(try await page.locator("input").inputValue() == "hello")
+
+				// Mouse: click the button by coordinates
+				let box: [String: Any] = try await page.evaluate("""
+					(() => { const r = document.querySelector('button').getBoundingClientRect(); return { x: r.x + r.width/2, y: r.y + r.height/2 }; })()
+					""")
+				let x = box["x"] as! Double
+				let y = box["y"] as! Double
+				try await page.mouse.click(x: x, y: y)
+				#expect(try await page.title() == "clicked")
+			}
+		}
+
+		@Test("Dialog handling works across browsers", arguments: ["chromium", "firefox", "webkit"])
+		func dialogCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				let dialogReceived = Mutex(false)
+
+				await page.onDialog { dialog in
+					dialogReceived.withLock { $0 = true }
+					try? await dialog.accept()
+				}
+
+				_ = try await page.evaluate("window.alert('test')" as String) as Any?
+				#expect(dialogReceived.withLock { $0 })
+			}
+		}
+
+		@Test("Download works across browsers", arguments: ["chromium", "firefox", "webkit"])
+		func downloadCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				try await page.setContent("""
+					<a id="dl" href="data:text/plain,cross-browser" download="test.txt">Download</a>
+					""")
+
+				let (downloads, continuation) = AsyncStream<Download>.makeStream()
+				page.onDownload { download in continuation.yield(download) }
+
+				try await page.locator("#dl").click()
+
+				var iter = downloads.makeAsyncIterator()
+				let download = await iter.next()!
+				#expect(download.suggestedFilename == "test.txt")
+
+				let path = try await download.path()
+				#expect(!path.isEmpty)
+			}
+		}
+
+		@Test("Persistent context works across browsers", arguments: ["chromium", "firefox", "webkit"])
+		func persistentContextCrossBrowser(browserName: String) async throws {
+			try await withPersistentContext(browser: browserName) { context in
+				let page: Page
+				if let existing = context.pages.first { page = existing }
+				else { page = try await context.newPage() }
+
+				try await page.setContent("<h1>Persistent</h1>")
+				let text = try await page.locator("h1").textContent()
+				#expect(text == "Persistent")
+
+				let result: Int = try await page.evaluate("2 + 2")
+				#expect(result == 4)
+			}
+		}
+
+		@Test("Route interception works across browsers", arguments: ["chromium", "firefox", "webkit"])
+		func routeCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				try await page.route("**/mock") { route in
+					try await route.fulfill(status: 200, body: "mocked")
+				}
+
+				try await page.route("**/base") { route in
+					try await route.fulfill(status: 200, body: "<html></html>")
+				}
+
+				try await page.goto("https://test.local/base")
+				let result: String = try await page.evaluate("fetch('/mock').then(r => r.text())")
+				#expect(result == "mocked")
 			}
 		}
 	}
