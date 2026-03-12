@@ -101,17 +101,21 @@ final class Transport: Sendable {
 	/// Shuts down the transport and the underlying server.
 	func close() {
 		closeGuard.closeOnce {
+			// Finish the stream first so consumers (Connection's messageLoopTask)
+			// see the end-of-stream before we cancel the read task.
 			messagesContinuation.finish()
 			readTask.cancel()
 			server.close()
 		}
 	}
 
-	/// Waits for the background read task to fully complete.
+	/// Waits for the background read task and driver process to fully complete.
 	///
 	/// Called by ``Connection/close()`` to ensure no orphaned tasks
-	/// keep the process alive on macOS.
+	/// keep the process alive on macOS, and the driver process has exited
+	/// before callers clean up resources (e.g. temp directories).
 	func waitForShutdown() async {
 		await readTask.value
+		await server.waitForExit()
 	}
 }

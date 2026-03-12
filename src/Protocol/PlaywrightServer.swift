@@ -121,6 +121,10 @@ final class PlaywrightServer: Sendable {
 	}
 
 	/// Shuts down the Playwright server.
+	///
+	/// Synchronous so it can be called from `deinit`. Signals the process to
+	/// exit (stdin close + SIGTERM) but does not block waiting for it.
+	/// Call ``waitForExit()`` afterwards to ensure the process has fully exited.
 	func close() {
 		closeGuard.closeOnce {
 			stdoutHandle.readabilityHandler = nil
@@ -133,6 +137,22 @@ final class PlaywrightServer: Sendable {
 
 			if process.isRunning {
 				process.terminate()
+			}
+		}
+	}
+
+	/// Waits for the driver process to fully exit without blocking the cooperative thread pool.
+	///
+	/// Uses `terminationHandler` instead of the blocking `waitUntilExit()` which
+	/// runs a RunLoop on macOS and hangs when called from an actor.
+	func waitForExit() async {
+		guard process.isRunning else { return }
+		await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+			// terminationHandler is called on an arbitrary queue once the process exits.
+			// If the process already exited between our check and setting the handler,
+			// Foundation still calls the handler immediately.
+			process.terminationHandler = { _ in
+				cont.resume()
 			}
 		}
 	}

@@ -37,11 +37,8 @@ actor Connection: Sendable {
 			}
 
 			// Only close on unexpected transport termination (server crash, pipe break).
-			// When cancelled by Connection.close(), skip to avoid a re-entrant actor call
-			// that creates a dependency cycle (close awaits task, task awaits close).
-			if !Task.isCancelled {
-				await self?.close()
-			}
+			// When cancelled by Connection.close(), skip — close() already handles teardown.
+			if !Task.isCancelled { await self?.close(fromMessageLoop: true) }
 		}
 	}
 
@@ -130,7 +127,10 @@ actor Connection: Sendable {
 	}
 
 	/// Shuts down the connection and underlying transport.
-	func close() async {
+	///
+	/// - Parameter fromMessageLoop: `true` when called from the message loop task
+	///   itself (unexpected EOF). Skips awaiting that task to avoid self-deadlock.
+	func close(fromMessageLoop: Bool = false) async {
 		guard !isClosed else { return }
 		isClosed = true
 
@@ -150,8 +150,9 @@ actor Connection: Sendable {
 		transport.close()
 
 		// Wait for background tasks to fully complete so no orphaned tasks
-		// keep the process alive on macOS.
-		await task?.value
+		// keep the process alive on macOS. Skip if close() was called from
+		// the messageLoopTask itself to avoid self-deadlock.
+		if !fromMessageLoop { await task?.value }
 		await transport.waitForShutdown()
 	}
 

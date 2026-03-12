@@ -9,8 +9,7 @@ extension PlaywrightTests {
 			let server = try await PlaywrightServer.launch()
 			#expect(server.isRunning)
 			server.close()
-			// Process exits asynchronously after close (stdin close + SIGTERM).
-			try await Task.sleep(for: .milliseconds(500))
+			await server.waitForExit()
 			#expect(!server.isRunning)
 		}
 
@@ -20,7 +19,7 @@ extension PlaywrightTests {
 				let server = try await PlaywrightServer.launch()
 				#expect(server.isRunning)
 				server.close()
-				try await Task.sleep(for: .milliseconds(500))
+				await server.waitForExit()
 				#expect(!server.isRunning)
 			}
 		}
