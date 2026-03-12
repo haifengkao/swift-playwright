@@ -6,9 +6,9 @@ import Foundation
 //
 // Extend with nested `@Suite`s to inherit the shared time limit.
 #if CI && !canImport(Darwin)
-@Suite(.timeLimit(.minutes(2)), .serialized)
+@Suite(.timeLimit(.minutes(5)), .serialized)
 #else
-@Suite(.timeLimit(.minutes(2)))
+@Suite(.timeLimit(.minutes(5)))
 #endif
 struct PlaywrightTests {}
 

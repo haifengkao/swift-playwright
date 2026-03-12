@@ -33,10 +33,15 @@ actor Connection: Sendable {
 		messageLoopTask = Task { [weak self, transport] in
 			for await payload in transport.messages {
 				await self?.receive(payload)
+				if Task.isCancelled { break }
 			}
 
-			// transport closed (crash, kill, pipe break): tear down fully.
-			await self?.close()
+			// Only close on unexpected transport termination (server crash, pipe break).
+			// When cancelled by Connection.close(), skip to avoid a re-entrant actor call
+			// that creates a dependency cycle (close awaits task, task awaits close).
+			if !Task.isCancelled {
+				await self?.close()
+			}
 		}
 	}
 
@@ -125,7 +130,7 @@ actor Connection: Sendable {
 	}
 
 	/// Shuts down the connection and underlying transport.
-	func close() {
+	func close() async {
 		guard !isClosed else { return }
 		isClosed = true
 
@@ -143,6 +148,11 @@ actor Connection: Sendable {
 		failPendingCallbacks()
 		task?.cancel()
 		transport.close()
+
+		// Wait for background tasks to fully complete so no orphaned tasks
+		// keep the process alive on macOS.
+		await task?.value
+		await transport.waitForShutdown()
 	}
 
 	/// Drains all pending callbacks and resumes them with ``PlaywrightError/connectionClosed``.

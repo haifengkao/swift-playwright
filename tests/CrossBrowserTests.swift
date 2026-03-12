@@ -1,11 +1,12 @@
 import Testing
 import Foundation
-import Synchronization
 @testable import Playwright
+import Synchronization
 
 extension PlaywrightTests {
-	@Suite struct CrossBrowserTests {
-		@Test("Launch, newPage, and close works", arguments: ["chromium", "firefox", "webkit"])
+	@Suite(.serialized)
+	struct CrossBrowserTests {
+		@Test("Launch, newPage, and close works", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func fullLifecycle(browserName: String) async throws {
 			let playwright = try await Playwright.launch()
 			let browser = try await browserType(named: browserName, from: playwright).launch()
@@ -25,7 +26,7 @@ extension PlaywrightTests {
 			await playwright.close()
 		}
 
-		@Test("Multiple pages across contexts", arguments: ["chromium", "firefox", "webkit"])
+		@Test("Multiple pages across contexts", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func multiplePagesAcrossContexts(browserName: String) async throws {
 			try await withBrowser(browser: browserName) { browser in
 				let context1 = try await browser.newContext()
@@ -40,7 +41,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("Navigation and title work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		@Test("Navigation and title work across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func navigationCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				let response = try await page.goto("https://example.com")
@@ -52,7 +53,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("Locator actions work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		@Test("Locator actions work across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func locatorActionsCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.setContent("""
@@ -68,7 +69,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("Evaluate and screenshot work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		@Test("Evaluate and screenshot work across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func evaluateScreenshotCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.setContent("<h1>Test</h1>")
@@ -88,7 +89,7 @@ extension PlaywrightTests {
 
 		// MARK: - v0.4 Cross-Browser Tests
 
-		@Test("querySelector and querySelectorAll work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		@Test("querySelector and querySelectorAll work across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func querySelectorCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.setContent("<ul><li>A</li><li>B</li><li>C</li></ul>")
@@ -101,7 +102,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("ElementHandle query methods work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		@Test("ElementHandle query methods work across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func elementHandleCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.setContent("""
@@ -117,7 +118,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("Keyboard and mouse work across browsers", arguments: ["chromium", "firefox", "webkit"])
+		@Test("Keyboard and mouse work across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func keyboardMouseCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.setContent("""
@@ -141,7 +142,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("Dialog handling works across browsers", arguments: ["chromium", "firefox", "webkit"])
+		@Test("Dialog handling works across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func dialogCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				let dialogReceived = Mutex(false)
@@ -156,7 +157,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("Download works across browsers", arguments: ["chromium", "firefox", "webkit"])
+		@Test("Download works across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func downloadCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.setContent("""
@@ -177,7 +178,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("Persistent context works across browsers", arguments: ["chromium", "firefox", "webkit"])
+		@Test("Persistent context works across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func persistentContextCrossBrowser(browserName: String) async throws {
 			try await withPersistentContext(browser: browserName) { context in
 				let page: Page
@@ -193,7 +194,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("Route interception works across browsers", arguments: ["chromium", "firefox", "webkit"])
+		@Test("Route interception works across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func routeCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.route("**/mock") { route in

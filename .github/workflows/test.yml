@@ -15,30 +15,34 @@ jobs:
         os: [ubuntu-latest, namespace-profile-mac]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Swift (Linux)
-      if: runner.os == 'Linux'
-      uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: '6.1'
+      - name: Install Swift (Linux)
+        if: runner.os == 'Linux'
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.1"
 
-    - name: Cache Playwright Driver
-      uses: actions/cache@v4
-      with:
-        path: src/drivers
-        key: ${{ runner.os }}-playwright-driver-${{ hashFiles('src/Protocol/Driver.swift') }}
+      - name: Cache Swift Build Artifacts
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-swift-build-${{ hashFiles('Package.swift', 'Package.resolved', 'src/**/*.swift', 'tests/**/*.swift', 'cli/**/*.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-swift-build-${{ hashFiles('Package.swift', 'Package.resolved') }}
+            ${{ runner.os }}-swift-build-
 
-    - name: Install Playwright Driver
-      run: swift package --allow-writing-to-package-directory --allow-network-connections all:443 install-playwright
+      - name: Install Playwright Driver
+        run: swift package --allow-writing-to-package-directory --allow-network-connections all:443 install-playwright
 
-    - name: Install Browsers
-      run: |
-        DRIVER_DIR=$(ls -1d src/drivers/playwright-*/ | head -1)
-        "$DRIVER_DIR/node" "$DRIVER_DIR/package/cli.js" install --with-deps
+      - name: Install Browsers
+        run: |
+          DRIVER_DIR=$(ls -1d src/drivers/playwright-*/ | head -1)
+          "$DRIVER_DIR/node" "$DRIVER_DIR/package/cli.js" install --with-deps
 
-    - name: Build
-      run: swift build
+      - name: Build (including tests)
+        run: swift build
 
-    - name: Run tests
-      run: swift test -Xswiftc -DCI
+      - name: Run tests
+        timeout-minutes: 10
+        run: swift test -v -Xswiftc -DCI

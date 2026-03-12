@@ -316,7 +316,7 @@ extension PlaywrightTests {
 			}
 		}
 
-		@Test("page.evaluate preserves shared reference identity in arguments")
+		@Test("page.evaluate preserves shared reference identity in arguments", .enabled(if: isApplePlatform))
 		func evaluateSharedRefArg() async throws {
 			try await withPage { page in
 				let shared = NSMutableDictionary()

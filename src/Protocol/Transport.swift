@@ -101,9 +101,17 @@ final class Transport: Sendable {
 	/// Shuts down the transport and the underlying server.
 	func close() {
 		closeGuard.closeOnce {
-			readTask.cancel()
 			messagesContinuation.finish()
+			readTask.cancel()
 			server.close()
 		}
+	}
+
+	/// Waits for the background read task to fully complete.
+	///
+	/// Called by ``Connection/close()`` to ensure no orphaned tasks
+	/// keep the process alive on macOS.
+	func waitForShutdown() async {
+		await readTask.value
 	}
 }

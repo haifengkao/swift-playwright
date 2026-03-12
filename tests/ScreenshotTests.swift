@@ -53,10 +53,7 @@ extension PlaywrightTests {
 		// MARK: - Format inference
 
 		@Test("screenshotParams infers format from path extension", arguments: [
-			("shot.png", "png"),
-			("shot.jpg", "jpeg"),
-			("shot.jpeg", "jpeg"),
-			("shot.JPG", "jpeg"),
+			("shot.png", "png"), ("shot.jpg", "jpeg"), ("shot.jpeg", "jpeg"), ("shot.JPG", "jpeg"),
 		])
 		func infersFormatFromPath(path: String, expectedType: String) throws {
 			let params = try screenshotParams(path: path)

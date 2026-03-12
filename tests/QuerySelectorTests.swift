@@ -90,8 +90,7 @@ extension PlaywrightTests {
 		}
 
 		@Test("waitForSelector succeeds with nil for absent element states", arguments: [
-			WaitForSelectorState.hidden,
-			WaitForSelectorState.detached,
+			WaitForSelectorState.hidden, .detached,
 		])
 		func waitForSelectorAbsentStates(state: WaitForSelectorState) async throws {
 			try await withPage { page in
@@ -100,6 +99,5 @@ extension PlaywrightTests {
 				#expect(element == nil)
 			}
 		}
-
 	}
 }

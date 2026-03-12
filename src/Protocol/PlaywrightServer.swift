@@ -131,8 +131,9 @@ final class PlaywrightServer: Sendable {
 			stdoutHandle.closeFile()
 			stderrHandle.closeFile()
 
-			process.terminate()
-			process.waitUntilExit()
+			if process.isRunning {
+				process.terminate()
+			}
 		}
 	}
 }
