@@ -73,6 +73,16 @@ public struct Locator: LocatorFactory, Sendable {
 		Locator(frame, selector: "\(selector) >> nth=\(index)")
 	}
 
+	/// Returns an array of locators, one for each matched element.
+	///
+	/// Does not wait for elements to appear — returns whatever is present immediately.
+	///
+	/// See: https://playwright.dev/docs/api/class-locator#locator-all
+	public func all() async throws -> [Locator] {
+		let count = try await count()
+		return (0..<count).map { nth($0) }
+	}
+
 	// MARK: - Filtering
 
 	/// Filters this locator to elements containing the given text.

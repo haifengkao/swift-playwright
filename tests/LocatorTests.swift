@@ -770,5 +770,28 @@ extension PlaywrightTests {
 				#expect(child.page === page)
 			}
 		}
+
+		// MARK: - all()
+
+		@Test("locator.all() returns one locator per matching element")
+		func allReturnsLocators() async throws {
+			try await withPage { page in
+				try await page.setContent("<ul><li>A</li><li>B</li><li>C</li></ul>")
+				let items = try await page.locator("li").all()
+				#expect(items.count == 3)
+				#expect(try await items[0].textContent() == "A")
+				#expect(try await items[1].textContent() == "B")
+				#expect(try await items[2].textContent() == "C")
+			}
+		}
+
+		@Test("locator.all() returns empty array when nothing matches")
+		func allReturnsEmpty() async throws {
+			try await withPage { page in
+				try await page.setContent("<div>No items</div>")
+				let items = try await page.locator(".nonexistent").all()
+				#expect(items.isEmpty)
+			}
+		}
 	}
 }

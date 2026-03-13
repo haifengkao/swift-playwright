@@ -86,11 +86,11 @@ public final class Browser: ChannelOwner, @unchecked Sendable {
 		if let permissions { params["permissions"] = permissions }
 		if let colorScheme { params["colorScheme"] = colorScheme.rawValue }
 		if let geolocation { params["geolocation"] = geolocation.toParams() }
-		if let acceptDownloads { params["acceptDownloads"] = acceptDownloads }
 		if let deviceScaleFactor { params["deviceScaleFactor"] = deviceScaleFactor }
 		if let javaScriptEnabled { params["javaScriptEnabled"] = javaScriptEnabled }
 		if let ignoreHTTPSErrors { params["ignoreHTTPSErrors"] = ignoreHTTPSErrors }
 		if let httpCredentials { params["httpCredentials"] = httpCredentials.toParams() }
+		if let acceptDownloads { params["acceptDownloads"] = acceptDownloads ? "accept" : "deny" }
 
 		if noViewport == true { params["noDefaultViewport"] = true }
 		else if let viewport { params["viewport"] = ["width": viewport.width, "height": viewport.height] }

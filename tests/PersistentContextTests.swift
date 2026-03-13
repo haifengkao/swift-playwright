@@ -19,6 +19,14 @@ extension PlaywrightTests {
 			}
 		}
 
+		@Test("persistent context browser has browserType set")
+		func browserTypeSet() async throws {
+			try await withPersistentContext { context in
+				let browser = try #require(context.browser)
+				#expect(browser.browserType.name == "chromium")
+			}
+		}
+
 		@Test("persistent context can create and navigate pages")
 		func navigatePages() async throws {
 			try await withPersistentContext { context in

@@ -124,9 +124,11 @@ public final class BrowserType: ChannelOwner, @unchecked Sendable {
 		if let userAgent { params["userAgent"] = userAgent }
 		if let slowMo { params["slowMo"] = slowMo.milliseconds }
 		if let executablePath { params["executablePath"] = executablePath }
-		if let acceptDownloads { params["acceptDownloads"] = acceptDownloads }
+		if let acceptDownloads { params["acceptDownloads"] = acceptDownloads ? "accept" : "deny" }
 		if let env { params["env"] = env.map { ["name": $0.key, "value": $0.value] } }
 
-		return try await sendAndResolve("launchPersistentContext", params: params, key: "context")
+		let context: BrowserContext = try await sendAndResolve("launchPersistentContext", params: params, key: "context")
+		context.browser?.browserType = self
+		return context
 	}
 }

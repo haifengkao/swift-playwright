@@ -36,7 +36,7 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	}
 
 	/// Back-reference to the owning page (set by Page after creation).
-	public var page: Page? {
+	public internal(set) var page: Page? {
 		get { state.withLock { $0.page } }
 		set { state.withLock { $0.page = newValue } }
 	}
