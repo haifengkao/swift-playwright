@@ -14,6 +14,11 @@ import Foundation
 ///
 /// See: https://playwright.dev/docs/api/class-download
 public struct Download: Sendable {
+	/// The page that the download belongs to.
+	///
+	/// See: https://playwright.dev/docs/api/class-download#download-page
+	public let page: Page
+
 	/// The URL of the download.
 	public let url: String
 
@@ -23,8 +28,9 @@ public struct Download: Sendable {
 	/// The underlying artifact managing the server-side temp file.
 	private let artifact: Artifact
 
-	init(url: String, suggestedFilename: String, artifact: Artifact) {
+	init(page: Page, url: String, suggestedFilename: String, artifact: Artifact) {
 		self.url = url
+		self.page = page
 		self.artifact = artifact
 		self.suggestedFilename = suggestedFilename
 	}

@@ -12,6 +12,11 @@ public enum DialogType: String, Sendable {
 ///
 /// See: https://playwright.dev/docs/api/class-dialog
 public final class Dialog: ChannelOwner, @unchecked Sendable {
+	/// The page that initiated this dialog, if available.
+	///
+	/// See: https://playwright.dev/docs/api/class-dialog#dialog-page
+	public internal(set) var page: Page?
+
 	/// The dialog type.
 	public let dialogType: DialogType
 
@@ -22,9 +27,11 @@ public final class Dialog: ChannelOwner, @unchecked Sendable {
 	public let defaultValue: String
 
 	override init(connection: Connection, parent: ChannelOwner?, type: String, guid: String, initializer: [String: Any]) {
+		page = initializer["page"] as? Page
 		message = initializer["message"] as? String ?? ""
 		defaultValue = initializer["defaultValue"] as? String ?? ""
 		dialogType = (initializer["type"] as? String).flatMap(DialogType.init) ?? .alert
+
 		super.init(connection: connection, parent: parent, type: type, guid: guid, initializer: initializer)
 	}
 

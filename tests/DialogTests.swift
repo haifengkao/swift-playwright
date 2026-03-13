@@ -116,6 +116,21 @@ extension PlaywrightTests {
 			}
 		}
 
+		@Test("dialog.page returns the page that triggered the dialog")
+		func dialogPage() async throws {
+			try await withPage { page in
+				let capturedPage = Mutex<Page?>(nil)
+
+				await page.onDialog { dialog in
+					capturedPage.withLock { $0 = dialog.page }
+					try? await dialog.accept()
+				}
+
+				_ = try await page.evaluate("window.alert('page test')" as String) as Any?
+				#expect(capturedPage.withLock { $0 } === page)
+			}
+		}
+
 		@Test("dialog with no listener is auto-dismissed", arguments: [
 			("window.alert('Auto dismiss?'); 'ok'", "ok"),
 			("String(window.confirm('Auto dismiss?'))", "false"),

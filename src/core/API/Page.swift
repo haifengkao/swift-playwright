@@ -149,7 +149,8 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 			      let artifact = params["artifact"] as? Artifact,
 			      let suggestedFilename = params["suggestedFilename"] as? String
 			else { return }
-			self.dispatchDownload(Download(url: url, suggestedFilename: suggestedFilename, artifact: artifact))
+
+			self.dispatchDownload(Download(page: self, url: url, suggestedFilename: suggestedFilename, artifact: artifact))
 		}
 	}
 

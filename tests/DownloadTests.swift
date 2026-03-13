@@ -23,6 +23,24 @@ extension PlaywrightTests {
 			}
 		}
 
+		@Test("download.page returns the page that initiated the download")
+		func downloadPage() async throws {
+			try await withPage { page in
+				try await page.setContent("""
+					<a id="dl" href="data:text/plain,Hello" download="test.txt">Download</a>
+					""")
+
+				let (downloads, continuation) = AsyncStream<Download>.makeStream()
+				page.onDownload { download in continuation.yield(download) }
+
+				try await page.locator("#dl").click()
+
+				var iter = downloads.makeAsyncIterator()
+				let download = await iter.next()!
+				#expect(download.page === page)
+			}
+		}
+
 		@Test("download.saveAs saves file to disk")
 		func downloadSaveAs() async throws {
 			try await withPage { page in

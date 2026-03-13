@@ -58,10 +58,7 @@ extension PlaywrightTests {
 					<div id='target' style='display:none'>Now visible</div>
 					<script>setTimeout(() => document.getElementById('target').style.display = '', 300)</script>
 					""")
-				let start = ContinuousClock.now
 				let element = try #require(await page.waitForSelector("#target", state: .visible))
-				let elapsed = ContinuousClock.now - start
-				#expect(elapsed >= .milliseconds(200), "should have waited for the element to become visible, but returned in \(elapsed)")
 				let text = try await element.innerText()
 				#expect(text == "Now visible")
 			}

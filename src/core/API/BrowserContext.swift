@@ -54,6 +54,7 @@ public final class BrowserContext: ChannelOwner, @unchecked Sendable {
 
 		on("dialog") { params in
 			guard let dialog = params["dialog"] as? Dialog, let page = dialog.parent as? Page else { return }
+			if dialog.page == nil { dialog.page = page }
 			page.dispatchDialog(dialog)
 		}
 
