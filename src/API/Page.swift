@@ -43,6 +43,7 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		var ownedContext: BrowserContext?
 		var routeHandlers: [RouteHandler] = []
 		var dialogHandlers: [@Sendable (Dialog) async -> Void] = []
+		var consoleHandlers: [@Sendable (ConsoleMessage) -> Void] = []
 		var downloadHandlers: [@Sendable (Download) async -> Void] = []
 	}
 
@@ -89,6 +90,7 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 				$0.isClosed = true
 				$0.routeHandlers.removeAll()
 				$0.dialogHandlers.removeAll()
+				$0.consoleHandlers.removeAll()
 				$0.downloadHandlers.removeAll()
 			}
 			self.context.removePage(self)
@@ -276,6 +278,36 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		let handlers = state.withLock { $0.downloadHandlers }
 		for handler in handlers {
 			Task<Void, Never> { await handler(download) }
+		}
+	}
+
+	// MARK: - Console
+
+	/// Registers a handler for console message events.
+	///
+	/// ```swift
+	/// page.onConsole { message in
+	///     print("\(message.consoleType): \(message.text)")
+	/// }
+	/// ```
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-event-console
+	public func onConsole(_ handler: @escaping @Sendable (ConsoleMessage) -> Void) async {
+		let isFirst = state.withLock { state in
+			let wasEmpty = state.consoleHandlers.isEmpty
+			state.consoleHandlers.append(handler)
+			return wasEmpty
+		}
+
+		if isFirst { await sendNoReply("updateSubscription", params: ["event": "console", "enabled": true]) }
+	}
+
+	/// Called when a console event is received for this page.
+	func dispatchConsole(_ message: ConsoleMessage) {
+		let handlers = state.withLock { $0.consoleHandlers }
+
+		for handler in handlers {
+			handler(message)
 		}
 	}
 

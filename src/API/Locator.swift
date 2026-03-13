@@ -303,6 +303,81 @@ public struct Locator: LocatorFactory, Sendable {
 		try await frame.queryCount(selector)
 	}
 
+	// MARK: - Evaluate
+
+	/// Type-safe variant that casts the result to the expected type.
+	///
+	/// ```swift
+	/// let tagName: String = try await page.locator("h1").evaluate("el => el.tagName")
+	/// ```
+	///
+	/// - Throws: `PlaywrightError.invalidArgument` if the result cannot be cast to `T`.
+	///
+	/// See: https://playwright.dev/docs/api/class-locator#locator-evaluate
+	public func evaluate<T>(_ expression: String, arg: Any? = nil, timeout: Duration? = nil) async throws -> T {
+		guard let result = try await evaluate(expression, arg: arg, timeout: timeout) as? T else {
+			throw PlaywrightError.invalidArgument("Expected evaluate result of type \(T.self)")
+		}
+
+		return result
+	}
+
+	/// Evaluates a JavaScript expression with the first matching element as the first argument.
+	///
+	/// ```swift
+	/// let tagName = try await page.locator("h1").evaluate("el => el.tagName")
+	/// ```
+	///
+	/// - Parameter expression: The JavaScript expression to evaluate.
+	/// - Parameter arg: Optional argument to pass to the expression.
+	/// - Parameter timeout: Maximum time to wait for the element. Defaults to 30 seconds.
+	/// - Returns: The result of the evaluation, or `nil` for JavaScript `null`/`undefined`.
+	///
+	/// See: https://playwright.dev/docs/api/class-locator#locator-evaluate
+	@_disfavoredOverload
+	public func evaluate(_ expression: String, arg: Any? = nil, timeout: Duration? = nil) async throws -> Any? {
+		guard let handle = try await frame.waitForSelector(selector, state: .attached, strict: true, timeout: timeout) else {
+			throw PlaywrightError.serverError("Element not found for selector: \(selector)")
+		}
+
+		let result = try await handle.evaluate(expression, arg: arg)
+		try? await handle.dispose()
+		return result
+	}
+
+	/// Type-safe variant that casts the result to the expected type.
+	///
+	/// ```swift
+	/// let count: Int = try await page.locator("li").evaluateAll("els => els.length")
+	/// ```
+	///
+	/// - Throws: `PlaywrightError.invalidArgument` if the result cannot be cast to `T`.
+	///
+	/// See: https://playwright.dev/docs/api/class-locator#locator-evaluate-all
+	public func evaluateAll<T>(_ expression: String, arg: Any? = nil) async throws -> T {
+		guard let result = try await evaluateAll(expression, arg: arg) as? T else {
+			throw PlaywrightError.invalidArgument("Expected evaluateAll result of type \(T.self)")
+		}
+
+		return result
+	}
+
+	/// Evaluates a JavaScript expression on all matching elements.
+	///
+	/// ```swift
+	/// let count = try await page.locator("li").evaluateAll("els => els.length")
+	/// ```
+	///
+	/// - Parameter expression: The JavaScript expression to evaluate.
+	/// - Parameter arg: Optional argument to pass to the expression.
+	/// - Returns: The result of the evaluation, or `nil` for JavaScript `null`/`undefined`.
+	///
+	/// See: https://playwright.dev/docs/api/class-locator#locator-evaluate-all
+	@_disfavoredOverload
+	public func evaluateAll(_ expression: String, arg: Any? = nil) async throws -> Any? {
+		try await frame.evalOnSelectorAll(selector, expression: expression, arg: arg)
+	}
+
 	// MARK: - State Checks
 
 	/// Returns whether the element is visible.
@@ -362,8 +437,9 @@ public struct Locator: LocatorFactory, Sendable {
 		}
 		let remaining = max(deadline - .now, .zero)
 
-		defer { Task { try? await handle.dispose() } }
-		return try await handle.screenshot(type: type, quality: quality, omitBackground: omitBackground, timeout: remaining, path: path)
+		let result = try await handle.screenshot(type: type, quality: quality, omitBackground: omitBackground, timeout: remaining, path: path)
+		try? await handle.dispose()
+		return result
 	}
 }
 

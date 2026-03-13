@@ -194,6 +194,15 @@ extension PlaywrightTests {
 			}
 		}
 
+		@Test("Locator evaluate works across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
+		func locatorEvaluateCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				try await page.setContent("<div id='test'>content</div>")
+				let result = try await page.locator("#test").evaluate("el => el.id")
+				#expect(result as? String == "test")
+			}
+		}
+
 		@Test("Route interception works across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
 		func routeCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in

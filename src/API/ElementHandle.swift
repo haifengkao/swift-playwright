@@ -77,6 +77,27 @@ public final class ElementHandle: ChannelOwner, @unchecked Sendable {
 		return result["value"] as? String ?? ""
 	}
 
+	/// Evaluates a JavaScript expression with this element as the first argument.
+	///
+	/// ```swift
+	/// let tagName = try await elementHandle.evaluate("el => el.tagName") as? String
+	/// ```
+	///
+	/// - Parameter expression: The JavaScript expression to evaluate.
+	/// - Parameter arg: Optional argument to pass to the expression.
+	/// - Returns: The result of the evaluation, or `nil` for JavaScript `null`/`undefined`.
+	///
+	/// See: https://playwright.dev/docs/api/class-elementhandle#element-handle-evaluate
+	public func evaluate(_ expression: String, arg: Any? = nil) async throws -> Any? {
+		nonisolated(unsafe) let params: [String: Any] = try [
+			"expression": expression,
+			"arg": EvaluateSerializer.serializeArgument(arg),
+		]
+
+		let result = try await send("evaluateExpression", params: params)
+		return EvaluateSerializer.parseResult(result["value"])
+	}
+
 	/// Releases this handle, allowing the server to garbage-collect the
 	/// underlying DOM reference.
 	///

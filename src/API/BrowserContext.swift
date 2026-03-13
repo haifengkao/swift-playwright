@@ -15,6 +15,7 @@ public final class BrowserContext: ChannelOwner, @unchecked Sendable {
 	private struct State: ~Copyable {
 		var pages: [Page] = []
 		var isOwnedContext = false
+		var consoleHandlers: [@Sendable (ConsoleMessage) -> Void] = []
 	}
 
 	private let state = Mutex(State())
@@ -42,6 +43,7 @@ public final class BrowserContext: ChannelOwner, @unchecked Sendable {
 
 		on("close") { [weak self] _ in
 			guard let self else { return }
+			self.state.withLock { $0.consoleHandlers.removeAll() }
 			self.browser?.removeContext(self)
 		}
 
@@ -53,6 +55,13 @@ public final class BrowserContext: ChannelOwner, @unchecked Sendable {
 		on("dialog") { params in
 			guard let dialog = params["dialog"] as? Dialog, let page = dialog.parent as? Page else { return }
 			page.dispatchDialog(dialog)
+		}
+
+		on("console") { [weak self] params in
+			let message = ConsoleMessage(params: params)
+
+			self?.dispatchConsole(message)
+			message.page?.dispatchConsole(message)
 		}
 	}
 
@@ -72,6 +81,39 @@ public final class BrowserContext: ChannelOwner, @unchecked Sendable {
 		}
 
 		return try await sendAndResolve("newPage", key: "page")
+	}
+
+	// MARK: - Console
+
+	/// Registers a handler for console message events from all pages and workers in this context.
+	///
+	/// Unlike `Page.onConsole`, this receives console messages from **all** sources,
+	/// including service workers whose messages don't have an associated page.
+	///
+	/// ```swift
+	/// await context.onConsole { message in
+	///     print("\(message.consoleType): \(message.text)")
+	/// }
+	/// ```
+	///
+	/// See: https://playwright.dev/docs/api/class-browsercontext#browser-context-event-console
+	public func onConsole(_ handler: @escaping @Sendable (ConsoleMessage) -> Void) async {
+		let isFirst = state.withLock { state in
+			let wasEmpty = state.consoleHandlers.isEmpty
+			state.consoleHandlers.append(handler)
+			return wasEmpty
+		}
+
+		if isFirst { await sendNoReply("updateSubscription", params: ["event": "console", "enabled": true]) }
+	}
+
+	/// Called when a console event is received in this context.
+	func dispatchConsole(_ message: ConsoleMessage) {
+		let handlers = state.withLock { $0.consoleHandlers }
+
+		for handler in handlers {
+			handler(message)
+		}
 	}
 
 	/// Removes a page from this context's page list.

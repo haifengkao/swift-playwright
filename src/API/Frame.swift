@@ -382,6 +382,23 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 
 		return result
 	}
+
+	/// Evaluates a JavaScript expression on all elements matching the selector.
+	///
+	/// - Parameter selector: The selector to match elements.
+	/// - Parameter expression: The JavaScript expression to evaluate.
+	/// - Parameter arg: Optional argument to pass to the expression.
+	/// - Returns: The result of the evaluation.
+	func evalOnSelectorAll(_ selector: String, expression: String, arg: Any? = nil) async throws -> Any? {
+		nonisolated(unsafe) let params: [String: Any] = try [
+			"selector": selector,
+			"expression": expression,
+			"arg": EvaluateSerializer.serializeArgument(arg),
+		]
+
+		let result = try await send("evalOnSelectorAll", params: params)
+		return EvaluateSerializer.parseResult(result["value"])
+	}
 }
 
 extension Frame: CustomStringConvertible {
