@@ -18,6 +18,11 @@ public final class Browser: ChannelOwner, @unchecked Sendable {
 	/// The browser version string (e.g. `"131.0.6778.33"`).
 	public let version: String
 
+	/// The browser type (Chromium, Firefox, or WebKit) that launched this browser.
+	///
+	/// See: https://playwright.dev/docs/api/class-browser#browser-browser-type
+	public internal(set) var browserType: BrowserType!
+
 	private struct State: ~Copyable {
 		var isConnected = true
 		var contexts: [BrowserContext] = []
@@ -44,7 +49,7 @@ public final class Browser: ChannelOwner, @unchecked Sendable {
 		}
 	}
 
-	/// Creates a new browser context with default settings.
+	/// Creates a new browser context.
 	///
 	/// Each context has its own cookie jar, session storage, and other browser state.
 	///
@@ -52,8 +57,45 @@ public final class Browser: ChannelOwner, @unchecked Sendable {
 	/// - Throws: `PlaywrightError` if the context could not be created.
 	///
 	/// See: https://playwright.dev/docs/api/class-browser#browser-new-context
-	public func newContext() async throws -> BrowserContext {
-		try await sendAndResolve("newContext", key: "context")
+	public func newContext(
+		viewport: ViewportSize? = ViewportSize(width: 1280, height: 720),
+		noViewport: Bool? = nil,
+		locale: String? = nil,
+		timezoneId: String? = nil,
+		userAgent: String? = nil,
+		deviceScaleFactor: Double? = nil,
+		isMobile: Bool? = nil,
+		hasTouch: Bool? = nil,
+		javaScriptEnabled: Bool? = nil,
+		acceptDownloads: Bool? = nil,
+		ignoreHTTPSErrors: Bool? = nil,
+		bypassCSP: Bool? = nil,
+		httpCredentials: HttpCredentials? = nil,
+		geolocation: Geolocation? = nil,
+		permissions: [String]? = nil,
+		colorScheme: ColorScheme? = nil
+	) async throws -> BrowserContext {
+		var params: [String: Any] = ["sdkLanguage": Driver.sdkLanguage]
+
+		if let locale { params["locale"] = locale }
+		if let isMobile { params["isMobile"] = isMobile }
+		if let hasTouch { params["hasTouch"] = hasTouch }
+		if let bypassCSP { params["bypassCSP"] = bypassCSP }
+		if let userAgent { params["userAgent"] = userAgent }
+		if let timezoneId { params["timezoneId"] = timezoneId }
+		if let permissions { params["permissions"] = permissions }
+		if let colorScheme { params["colorScheme"] = colorScheme.rawValue }
+		if let geolocation { params["geolocation"] = geolocation.toParams() }
+		if let acceptDownloads { params["acceptDownloads"] = acceptDownloads }
+		if let deviceScaleFactor { params["deviceScaleFactor"] = deviceScaleFactor }
+		if let javaScriptEnabled { params["javaScriptEnabled"] = javaScriptEnabled }
+		if let ignoreHTTPSErrors { params["ignoreHTTPSErrors"] = ignoreHTTPSErrors }
+		if let httpCredentials { params["httpCredentials"] = httpCredentials.toParams() }
+
+		if noViewport == true { params["noDefaultViewport"] = true }
+		else if let viewport { params["viewport"] = ["width": viewport.width, "height": viewport.height] }
+
+		return try await sendAndResolve("newContext", params: params, key: "context")
 	}
 
 	/// Creates a new page in a new browser context (convenience shorthand).

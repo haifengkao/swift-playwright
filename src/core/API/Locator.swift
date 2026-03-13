@@ -27,6 +27,13 @@ public struct Locator: LocatorFactory, Sendable {
 		self.selector = selector
 	}
 
+	// MARK: - Properties
+
+	/// The page this locator belongs to.
+	///
+	/// See: https://playwright.dev/docs/api/class-locator#locator-page
+	public var page: Page? { frame.page }
+
 	// MARK: - Chaining
 
 	/// Creates a locator that matches a child/descendant of this locator.

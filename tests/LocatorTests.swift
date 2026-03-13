@@ -752,5 +752,23 @@ extension PlaywrightTests {
 				#expect(submit == 1)
 			}
 		}
+
+		// MARK: - Page reference
+
+		@Test("locator.page returns the owning page")
+		func locatorPage() async throws {
+			try await withPage { page in
+				let locator = page.locator("body")
+				#expect(locator.page === page)
+			}
+		}
+
+		@Test("chained locator.page is the same page")
+		func chainedLocatorPage() async throws {
+			try await withPage { page in
+				let child = page.locator("div").locator("span")
+				#expect(child.page === page)
+			}
+		}
 	}
 }

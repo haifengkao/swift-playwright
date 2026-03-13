@@ -1,5 +1,21 @@
 import Foundation
 
+/// The size of a browser viewport.
+///
+/// See: https://playwright.dev/docs/api/class-page#page-viewport-size
+public struct ViewportSize: Sendable, Equatable {
+	/// The viewport width in pixels.
+	public var width: Int
+
+	/// The viewport height in pixels.
+	public var height: Int
+
+	public init(width: Int, height: Int) {
+		self.width = width
+		self.height = height
+	}
+}
+
 /// Mouse buttons for click actions.
 public enum MouseButton: String, Sendable {
 	case left, right, middle

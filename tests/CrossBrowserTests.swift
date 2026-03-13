@@ -219,5 +219,33 @@ extension PlaywrightTests {
 				#expect(result == "mocked")
 			}
 		}
+
+		// MARK: - Quick-Win Properties
+
+		@Test("page.viewportSize works across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
+		func viewportSizeCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				let size = page.viewportSize
+				#expect(size != nil)
+				#expect(size?.width == 1280)
+				#expect(size?.height == 720)
+			}
+		}
+
+		@Test("frame tree works across browsers", .serialized, arguments: ["chromium", "firefox", "webkit"])
+		func frameTreeCrossBrowser(browserName: String) async throws {
+			try await withPage(browser: browserName) { page in
+				#expect(page.frames.count == 1)
+				#expect(page.mainFrame.parentFrame == nil)
+				#expect(page.mainFrame.isDetached == false)
+			}
+		}
+
+		@Test("browser.browserType.name matches the launched browser across engines", .serialized, arguments: ["chromium", "firefox", "webkit"])
+		func browserTypeCrossBrowser(browserName: String) async throws {
+			try await withBrowser(browser: browserName) { browser in
+				#expect(browser.browserType.name == browserName)
+			}
+		}
 	}
 }

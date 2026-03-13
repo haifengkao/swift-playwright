@@ -12,7 +12,10 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		var url: String
 		var name: String
 		weak var page: Page?
+		var isDetached = false
 		var loadStates: Set<String>
+		weak var parentFrame: Frame?
+		var childFrames: [Frame] = []
 	}
 
 	private let state: Mutex<State>
@@ -32,10 +35,48 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		state.withLock { $0.loadStates }
 	}
 
-	/// Back-reference to the owning page (set by Page.init).
-	var page: Page? {
+	/// Back-reference to the owning page (set by Page after creation).
+	public var page: Page? {
 		get { state.withLock { $0.page } }
 		set { state.withLock { $0.page = newValue } }
+	}
+
+	/// The parent frame, or `nil` for the main (top-level) frame.
+	///
+	/// Resolved from the server initializer via `didCreate(resolve:)`.
+	///
+	/// See: https://playwright.dev/docs/api/class-frame#frame-parent-frame
+	public var parentFrame: Frame? {
+		state.withLock { $0.parentFrame }
+	}
+
+	/// All child frames (direct children only).
+	///
+	/// See: https://playwright.dev/docs/api/class-frame#frame-child-frames
+	public var childFrames: [Frame] {
+		state.withLock { $0.childFrames }
+	}
+
+	/// Whether this frame has been detached from the page.
+	///
+	/// See: https://playwright.dev/docs/api/class-frame#frame-is-detached
+	public var isDetached: Bool {
+		state.withLock { $0.isDetached }
+	}
+
+	/// Marks this frame as detached (called when `frameDetached` event fires on the page).
+	func markDetached() {
+		state.withLock { $0.isDetached = true }
+	}
+
+	/// Adds a child frame to this frame's child list.
+	func addChildFrame(_ frame: Frame) {
+		state.withLock { $0.childFrames.append(frame) }
+	}
+
+	/// Removes a child frame from this frame's child list.
+	func removeChildFrame(_ frame: Frame) {
+		state.withLock { $0.childFrames.removeAll { $0 === frame } }
 	}
 
 	override init(connection: Connection, parent: ChannelOwner?, type: String, guid: String, initializer: [String: Any]) {
@@ -73,6 +114,21 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 				page.emit(add, params: [:])
 			}
 		}
+	}
+
+	/// Resolves the parent frame reference from the object registry after the frame is created.
+	///
+	/// Child iframes have a `parentFrame` GUID in their initializer. We resolve
+	/// the parent here and register ourselves as a child of that parent.
+	override func didCreate(resolve: (String) -> ChannelOwner?) {
+		guard
+			let parentRef = initializer["parentFrame"] as? [String: Any],
+			let parentGuid = parentRef["guid"] as? String,
+			let parent = resolve(parentGuid) as? Frame
+		else { return }
+
+		state.withLock { $0.parentFrame = parent }
+		parent.addChildFrame(self)
 	}
 
 	// MARK: - Locators

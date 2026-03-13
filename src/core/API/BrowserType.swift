@@ -64,7 +64,9 @@ public final class BrowserType: ChannelOwner, @unchecked Sendable {
 		if let executablePath { params["executablePath"] = executablePath }
 		if let env { params["env"] = env.map { ["name": $0.key, "value": $0.value] } }
 
-		return try await sendAndResolve("launch", params: params, key: "browser")
+		let browser: Browser = try await sendAndResolve("launch", params: params, key: "browser")
+		browser.browserType = self
+		return browser
 	}
 
 	/// Launches a browser with a persistent user data directory.

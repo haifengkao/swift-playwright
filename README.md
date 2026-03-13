@@ -1,6 +1,7 @@
-# Playwright for Swift
+# 🎭 [Playwright](https://playwright.dev) for Swift
 
-> Swift language bindings for [Microsoft Playwright](https://playwright.dev)
+Playwright is a Swift library to automate [Chromium](https://www.chromium.org/Home), [Firefox](https://www.mozilla.org/en-US/firefox/new/) and [WebKit](https://webkit.org/) with a single API. Playwright is built to enable cross-browser web automation that is **ever-green**, **capable**, **reliable** and **fast**.
+
 ## Installation
 
 Add `swift-playwright` to your `Package.swift`:

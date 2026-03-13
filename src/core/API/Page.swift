@@ -40,6 +40,7 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 
 	private struct State: ~Copyable {
 		var isClosed = false
+		var viewportSize: ViewportSize?
 		var ownedContext: BrowserContext?
 		var routeHandlers: [RouteHandler] = []
 		var dialogHandlers: [@Sendable (Dialog) async -> Void] = []
@@ -55,6 +56,31 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// Whether the page has been closed.
 	public var isClosed: Bool {
 		state.withLock { $0.isClosed }
+	}
+
+	/// The current viewport size, or `nil` if the viewport has been disabled via `noViewport`.
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-viewport-size
+	public var viewportSize: ViewportSize? {
+		state.withLock { $0.viewportSize }
+	}
+
+	/// All frames attached to this page (main frame plus all descendant iframes).
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-frames
+	public var frames: [Frame] {
+		collectFrames(from: mainFrame)
+	}
+
+	/// Recursively collects all frames starting from the given frame.
+	private func collectFrames(from frame: Frame) -> [Frame] {
+		var result = [frame]
+
+		for child in frame.childFrames {
+			result.append(contentsOf: collectFrames(from: child))
+		}
+
+		return result
 	}
 
 	func setOwnedContext(_ context: BrowserContext) {
@@ -80,9 +106,25 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 
 		super.init(connection: connection, parent: parent, type: type, guid: guid, initializer: initializer)
 
+		// Parse viewport size from initializer (nil when noViewport is set)
+		if let viewportDict = initializer["viewportSize"] as? [String: Any], let width = viewportDict["width"] as? Int, let height = viewportDict["height"] as? Int {
+			state.withLock { $0.viewportSize = ViewportSize(width: width, height: height) }
+		}
+
 		mouse = Mouse(self)
 		mainFrame.page = self
 		keyboard = Keyboard(self)
+
+		on("frameAttached") { [weak self] params in
+			guard let self, let frame = params["frame"] as? Frame else { return }
+			frame.page = self
+		}
+
+		on("frameDetached") { params in
+			guard let frame = params["frame"] as? Frame else { return }
+			frame.markDetached()
+			frame.parentFrame?.removeChildFrame(frame)
+		}
 
 		on("close") { [weak self] _ in
 			guard let self else { return }
