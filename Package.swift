@@ -7,6 +7,7 @@ let package = Package(
 	platforms: [.macOS(.v15)],
 	products: [
 		.library(name: "Playwright", targets: ["Playwright"]),
+		.library(name: "PlaywrightTesting", targets: ["PlaywrightTesting"]),
 	],
 	dependencies: [
 		.package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0"),
@@ -14,7 +15,8 @@ let package = Package(
 	targets: [
 		// Library
 		.target(name: "Playwright", path: "./src", resources: [.copy("drivers")]),
-		.testTarget(name: "PlaywrightTests", dependencies: ["Playwright"], path: "./tests"),
+		.target(name: "PlaywrightTesting", dependencies: ["Playwright"], path: "./src-testing"),
+		.testTarget(name: "PlaywrightTests", dependencies: ["Playwright", "PlaywrightTesting"], path: "./tests"),
 
 		// Driver Downloader
 		.executableTarget(

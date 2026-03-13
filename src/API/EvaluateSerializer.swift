@@ -4,13 +4,13 @@ import Foundation
 ///
 /// Playwright uses a tagged-union format for passing values between the client
 /// and server. This serializer converts Swift values to that format and back.
-enum EvaluateSerializer {
+package enum EvaluateSerializer {
 	/// Serializes a Swift value into Playwright's tagged-union format.
 	///
 	/// Format: `{"value": <tagged>, "handles": []}`
 	///
 	/// - Throws: `PlaywrightError.invalidArgument` if the value contains an unsupported type.
-	static func serializeArgument(_ value: Any?) throws -> [String: Any] {
+	package static func serializeArgument(_ value: Any?) throws -> [String: Any] {
 		return try [
 			"handles": [] as [Any],
 			"value": serializeValue(value, visitor: VisitorInfo()),
@@ -18,7 +18,7 @@ enum EvaluateSerializer {
 	}
 
 	/// Parses a tagged-union result from the server into a Swift value.
-	static func parseResult(_ value: Any?) -> Any? {
+	package static func parseResult(_ value: Any?) -> Any? {
 		guard let dict = value as? [String: Any] else { return nil }
 
 		var refs: [Int: Any] = [:]

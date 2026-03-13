@@ -346,6 +346,25 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		_ = try await send("waitForTimeout", params: ["waitTimeout": timeout.milliseconds])
 	}
 
+	// MARK: - Assertions (internal, used by PlaywrightTesting)
+
+	/// Sends an "expect" assertion message to the server.
+	///
+	/// This is the raw protocol method used by the `PlaywrightTesting` module
+	/// to send server-side auto-retrying assertions.
+	///
+	/// - Parameter selector: The element selector, or `nil` for page-level assertions.
+	/// - Parameter expression: The assertion expression (e.g., `"to.be.visible"`).
+	/// - Parameter options: Additional options for the assertion.
+	/// - Returns: The server's response dictionary.
+	package func _expect(selector: String?, expression: String, options: [String: Any] = [:]) async throws -> [String: Any] {
+		nonisolated(unsafe) var params: [String: Any] = options
+		params["expression"] = expression
+		if let selector { params["selector"] = selector }
+
+		return try await send("expect", params: params)
+	}
+
 	// MARK: - Evaluate
 
 	/// Evaluates a JavaScript expression in the frame's context.

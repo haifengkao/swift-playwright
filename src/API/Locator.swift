@@ -19,8 +19,8 @@ import Foundation
 ///
 /// See: https://playwright.dev/docs/api/class-locator
 public struct Locator: LocatorFactory, Sendable {
-	let frame: Frame
-	let selector: String
+	package let frame: Frame
+	package let selector: String
 
 	init(_ frame: Frame, selector: String) {
 		self.frame = frame

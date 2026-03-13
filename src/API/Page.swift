@@ -12,7 +12,7 @@ import Synchronization
 /// See: https://playwright.dev/docs/api/class-page
 public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// The main frame of the page.
-	private let mainFrame: Frame
+	package let mainFrame: Frame
 
 	/// Keyboard input API.
 	///
