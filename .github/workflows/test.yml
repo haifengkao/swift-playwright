@@ -37,7 +37,7 @@ jobs:
 
       - name: Install Browsers
         run: |
-          DRIVER_DIR=$(ls -1d src/drivers/playwright-*/ | head -1)
+          DRIVER_DIR=$(ls -1d src/core/drivers/playwright-*/ | head -1)
           "$DRIVER_DIR/node" "$DRIVER_DIR/package/cli.js" install --with-deps
 
       - name: Build (including tests)

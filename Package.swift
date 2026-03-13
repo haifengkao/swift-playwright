@@ -14,9 +14,8 @@ let package = Package(
 	],
 	targets: [
 		// Library
-		.target(name: "Playwright", path: "./src", resources: [.copy("drivers")]),
-		.target(name: "PlaywrightTesting", dependencies: ["Playwright"], path: "./src-testing"),
-		.testTarget(name: "PlaywrightTests", dependencies: ["Playwright", "PlaywrightTesting"], path: "./tests"),
+		.target(name: "Playwright", path: "./src/core", resources: [.copy("drivers")]),
+		.target(name: "PlaywrightTesting", dependencies: ["Playwright"], path: "./src/testing"),
 
 		// Driver Downloader
 		.executableTarget(
@@ -45,6 +44,8 @@ let package = Package(
 			path: "./plugin"
 		),
 
+		// Tests
+		.testTarget(name: "PlaywrightTests", dependencies: ["Playwright", "PlaywrightTesting"], path: "./tests"),
 	],
 	swiftLanguageModes: [.v6]
 )

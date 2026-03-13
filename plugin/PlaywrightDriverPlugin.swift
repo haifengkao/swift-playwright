@@ -9,7 +9,7 @@ struct PlaywrightDriverPlugin: CommandPlugin {
 		let process = Process()
 		process.executableURL = URL(fileURLWithPath: tool.url.path())
 		process.arguments = [
-			"--cache-dir", playwrightPackageDirectory(context: context).appending(path: "src/drivers").path(),
+			"--cache-dir", playwrightPackageDirectory(context: context).appending(path: "src/core/drivers").path(),
 		] + arguments
 
 		try process.run()

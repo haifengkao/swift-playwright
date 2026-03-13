@@ -9,8 +9,8 @@ DerivedData/
 Package.resolved
 
 # Playwright drivers (downloaded via install-playwright plugin)
-/src/drivers/*
-!/src/drivers/.gitkeep
+/src/core/drivers/*
+!/src/core/drivers/.gitkeep
 
 # IDE
 .vscode/
