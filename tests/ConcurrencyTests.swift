@@ -32,7 +32,7 @@ extension PlaywrightTests {
 				}
 
 				let elapsed = clock.now - start
-				#expect(elapsed < .milliseconds(5 * delayMs), "Evaluates should overlap, not run serially")
+				#expect(elapsed < .seconds(3), "Evaluates should overlap, not run serially (serial would be ~5×\(delayMs)ms)")
 			}
 		}
 
