@@ -57,9 +57,9 @@ extension PlaywrightTests {
 		func locatorActionsCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.setContent("""
-						<button onclick="document.title = 'clicked'">Click me</button>
-						<input type="text" />
-					""")
+					<button onclick="document.title = 'clicked'">Click me</button>
+					<input type="text" />
+				""")
 
 				try await page.locator("button").click()
 				#expect(try await page.title() == "clicked")
@@ -106,8 +106,8 @@ extension PlaywrightTests {
 		func elementHandleCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.setContent("""
-					<div class="card"><h2>Title</h2><a href="/link">Link</a></div>
-					""")
+				<div class="card"><h2>Title</h2><a href="/link">Link</a></div>
+				""")
 
 				let card = try await page.querySelector(".card")!
 				let h2 = try await card.querySelector("h2")!
@@ -122,9 +122,9 @@ extension PlaywrightTests {
 		func keyboardMouseCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.setContent("""
-					<input type='text' />
-					<button onclick="document.title = 'clicked'">Click me</button>
-					""")
+				<input type='text' />
+				<button onclick="document.title = 'clicked'">Click me</button>
+				""")
 
 				// Keyboard: type into input
 				try await page.locator("input").focus()
@@ -132,9 +132,9 @@ extension PlaywrightTests {
 				#expect(try await page.locator("input").inputValue() == "hello")
 
 				// Mouse: click the button by coordinates
-				let box: [String: Any] = try await page.evaluate("""
-					(() => { const r = document.querySelector('button').getBoundingClientRect(); return { x: r.x + r.width/2, y: r.y + r.height/2 }; })()
-					""")
+				let box = try await page.evaluate("""
+				(() => { const r = document.querySelector('button').getBoundingClientRect(); return { x: r.x + r.width/2, y: r.y + r.height/2 }; })()
+				""", as: [String: Any].self)
 				let x = box["x"] as! Double
 				let y = box["y"] as! Double
 				try await page.mouse.click(x: x, y: y)
@@ -161,8 +161,8 @@ extension PlaywrightTests {
 		func downloadCrossBrowser(browserName: String) async throws {
 			try await withPage(browser: browserName) { page in
 				try await page.setContent("""
-					<a id="dl" href="data:text/plain,cross-browser" download="test.txt">Download</a>
-					""")
+				<a id="dl" href="data:text/plain,cross-browser" download="test.txt">Download</a>
+				""")
 
 				let (downloads, continuation) = AsyncStream<Download>.makeStream()
 				page.onDownload { download in continuation.yield(download) }
@@ -189,7 +189,7 @@ extension PlaywrightTests {
 				let text = try await page.locator("h1").textContent()
 				#expect(text == "Persistent")
 
-				let result: Int = try await page.evaluate("2 + 2")
+				let result = try await page.evaluate("2 + 2", as: Int.self)
 				#expect(result == 4)
 			}
 		}
@@ -215,7 +215,7 @@ extension PlaywrightTests {
 				}
 
 				try await page.goto("https://test.local/base")
-				let result: String = try await page.evaluate("fetch('/mock').then(r => r.text())")
+				let result = try await page.evaluate("fetch('/mock').then(r => r.text())", as: String.self)
 				#expect(result == "mocked")
 			}
 		}

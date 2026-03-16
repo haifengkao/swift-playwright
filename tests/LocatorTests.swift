@@ -39,10 +39,10 @@ extension PlaywrightTests {
 		func compositionLocators() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<button class="primary">Submit</button>
-						<a href="#">Link</a>
-						<span>Neither</span>
-					""")
+					<button class="primary">Submit</button>
+					<a href="#">Link</a>
+					<span>Neither</span>
+				""")
 				let orCount = try await page.locator("button").or(page.locator("a")).count()
 				#expect(orCount == 2)
 
@@ -66,9 +66,9 @@ extension PlaywrightTests {
 		func getByLabel() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<label for="email">Email address</label>
-						<input id="email" type="email" />
-					""")
+					<label for="email">Email address</label>
+					<input id="email" type="email" />
+				""")
 
 				try await page.getByLabel("Email address").fill("test@example.com")
 				let value = try await page.locator("#email").inputValue()
@@ -111,9 +111,9 @@ extension PlaywrightTests {
 		func getByRoleChecked() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<input type="checkbox" role="checkbox" aria-label="A" checked />
-						<input type="checkbox" role="checkbox" aria-label="B" />
-					""")
+					<input type="checkbox" role="checkbox" aria-label="A" checked />
+					<input type="checkbox" role="checkbox" aria-label="B" />
+				""")
 
 				let checked = try await page.getByRole(.checkbox, options: .init(checked: true)).count()
 				#expect(checked == 1)
@@ -124,9 +124,9 @@ extension PlaywrightTests {
 		func getByRoleDisabled() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<button disabled>Disabled</button>
-						<button>Enabled</button>
-					""")
+					<button disabled>Disabled</button>
+					<button>Enabled</button>
+				""")
 
 				let disabled = try await page.getByRole(.button, options: .init(disabled: true)).count()
 				#expect(disabled == 1)
@@ -137,10 +137,10 @@ extension PlaywrightTests {
 		func getByRoleLevel() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<h1>Title</h1>
-						<h2>Subtitle</h2>
-						<h3>Section</h3>
-					""")
+					<h1>Title</h1>
+					<h2>Subtitle</h2>
+					<h3>Section</h3>
+				""")
 
 				let h2 = try await page.getByRole(.heading, options: .init(level: 2)).count()
 				#expect(h2 == 1)
@@ -151,9 +151,9 @@ extension PlaywrightTests {
 		func getByTextExact() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<span>Hello World</span>
-						<span>Hello</span>
-					""")
+					<span>Hello World</span>
+					<span>Hello</span>
+				""")
 
 				let exact = try await page.getByText("Hello", exact: true).count()
 				#expect(exact == 1)
@@ -166,10 +166,10 @@ extension PlaywrightTests {
 		func filterHasNotText() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<div class="item">Apple</div>
-						<div class="item">Banana</div>
-						<div class="item">Cherry</div>
-					""")
+					<div class="item">Apple</div>
+					<div class="item">Banana</div>
+					<div class="item">Cherry</div>
+				""")
 
 				let count = try await page.locator(".item").filter(notHasText: "Banana").count()
 				#expect(count == 2)
@@ -180,10 +180,10 @@ extension PlaywrightTests {
 		func filterHas() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<div class="card"><h3>Card 1</h3></div>
-						<div class="card"><p>Card 2</p></div>
-						<div class="card"><h3>Card 3</h3></div>
-					""")
+					<div class="card"><h3>Card 1</h3></div>
+					<div class="card"><p>Card 2</p></div>
+					<div class="card"><h3>Card 3</h3></div>
+				""")
 
 				let withHeading = try page.locator(".card").filter(has: page.locator("h3"))
 				let count = try await withHeading.count()
@@ -195,10 +195,10 @@ extension PlaywrightTests {
 		func filterHasNot() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<div class="card"><h3>Card 1</h3></div>
-						<div class="card"><p>Card 2</p></div>
-						<div class="card"><h3>Card 3</h3></div>
-					""")
+					<div class="card"><h3>Card 1</h3></div>
+					<div class="card"><p>Card 2</p></div>
+					<div class="card"><h3>Card 3</h3></div>
+				""")
 
 				let withoutHeading = try page.locator(".card").filter(hasNot: page.locator("h3"))
 				let count = try await withoutHeading.count()
@@ -212,8 +212,8 @@ extension PlaywrightTests {
 		func clickButton() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<button onclick="document.title = 'clicked'">Click me</button>
-					""")
+					<button onclick="document.title = 'clicked'">Click me</button>
+				""")
 
 				try await page.locator("button").click()
 				let title = try await page.title()
@@ -265,8 +265,8 @@ extension PlaywrightTests {
 		func hoverElement() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<div onmouseenter="document.title = 'hovered'" style="width:100px;height:100px">Hover me</div>
-					""")
+					<div onmouseenter="document.title = 'hovered'" style="width:100px;height:100px">Hover me</div>
+				""")
 
 				try await page.locator("div").hover()
 				let title = try await page.title()
@@ -292,11 +292,11 @@ extension PlaywrightTests {
 		func selectOption() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<select>
-							<option value="a">A</option>
-							<option value="b">B</option>
-						</select>
-					""")
+					<select>
+						<option value="a">A</option>
+						<option value="b">B</option>
+					</select>
+				""")
 
 				try await page.locator("select").selectOption("b")
 				let value = try await page.locator("select").inputValue()
@@ -308,11 +308,11 @@ extension PlaywrightTests {
 		func selectOptionByLabel() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<select>
-							<option value="us">United States</option>
-							<option value="gb">United Kingdom</option>
-						</select>
-					""")
+					<select>
+						<option value="us">United States</option>
+						<option value="gb">United Kingdom</option>
+					</select>
+				""")
 
 				try await page.locator("select").selectOption("United States")
 				let value = try await page.locator("select").inputValue()
@@ -324,8 +324,8 @@ extension PlaywrightTests {
 		func focusBlur() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<input id="input1" onfocus="document.title = 'focused'" onblur="document.title = 'blurred'" />
-					""")
+					<input id="input1" onfocus="document.title = 'focused'" onblur="document.title = 'blurred'" />
+				""")
 
 				let input = page.locator("#input1")
 				try await input.focus()
@@ -340,8 +340,8 @@ extension PlaywrightTests {
 		func dblclick() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<button ondblclick="document.title = 'dblclicked'">Double click me</button>
-					""")
+					<button ondblclick="document.title = 'dblclicked'">Double click me</button>
+				""")
 
 				try await page.locator("button").dblclick()
 				let title = try await page.title()
@@ -416,9 +416,9 @@ extension PlaywrightTests {
 		func isVisible() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<div id="visible">Visible</div>
-						<div id="hidden" style="display:none">Hidden</div>
-					""")
+					<div id="visible">Visible</div>
+					<div id="hidden" style="display:none">Hidden</div>
+				""")
 
 				#expect(try await page.locator("#visible").isVisible())
 				#expect(try await !page.locator("#hidden").isVisible())
@@ -430,9 +430,9 @@ extension PlaywrightTests {
 		func isEnabled() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<input id="enabled" />
-						<input id="disabled" disabled />
-					""")
+					<input id="enabled" />
+					<input id="disabled" disabled />
+				""")
 
 				#expect(try await page.locator("#enabled").isEnabled())
 				#expect(try await page.locator("#disabled").isDisabled())
@@ -465,9 +465,9 @@ extension PlaywrightTests {
 		func isEditable() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<input id="editable" />
-						<input id="readonly" readonly />
-					""")
+					<input id="editable" />
+					<input id="readonly" readonly />
+				""")
 
 				#expect(try await page.locator("#editable").isEditable())
 				#expect(try await !page.locator("#readonly").isEditable())
@@ -478,9 +478,9 @@ extension PlaywrightTests {
 		func isCheckedQuery() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<input type="checkbox" id="checked" checked />
-						<input type="checkbox" id="unchecked" />
-					""")
+					<input type="checkbox" id="checked" checked />
+					<input type="checkbox" id="unchecked" />
+				""")
 
 				#expect(try await page.locator("#checked").isChecked())
 				#expect(try await !page.locator("#unchecked").isChecked())
@@ -630,10 +630,10 @@ extension PlaywrightTests {
 		func locatorLocatorOverload() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<div class="outer">
-							<span class="inner">Found</span>
-						</div>
-					""")
+					<div class="outer">
+						<span class="inner">Found</span>
+					</div>
+				""")
 				let outer = page.locator(".outer")
 				let inner = page.locator(".inner")
 				let chained = try outer.locator(inner)
@@ -663,10 +663,10 @@ extension PlaywrightTests {
 		func clickRightButton() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<div id="target" oncontextmenu="document.title = 'contextmenu'; return false;" style="width:100px;height:100px">
-							Right click me
-						</div>
-					""")
+					<div id="target" oncontextmenu="document.title = 'contextmenu'; return false;" style="width:100px;height:100px">
+						Right click me
+					</div>
+				""")
 				try await page.locator("#target").click(button: .right)
 				let title = try await page.title()
 				#expect(title == "contextmenu")
@@ -677,8 +677,8 @@ extension PlaywrightTests {
 		func clickWithModifier() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<button onclick="document.title = event.shiftKey ? 'shift' : 'no-shift'">Click</button>
-					""")
+					<button onclick="document.title = event.shiftKey ? 'shift' : 'no-shift'">Click</button>
+				""")
 				try await page.locator("button").click(modifiers: [.shift])
 				let title = try await page.title()
 				#expect(title == "shift")
@@ -689,10 +689,10 @@ extension PlaywrightTests {
 		func clickWithPosition() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<div id="target" style="width:200px;height:200px"
-							onclick="document.title = Math.round(event.offsetX) + ',' + Math.round(event.offsetY)">
-						</div>
-					""")
+					<div id="target" style="width:200px;height:200px"
+						onclick="document.title = Math.round(event.offsetX) + ',' + Math.round(event.offsetY)">
+					</div>
+				""")
 				try await page.locator("#target").click(position: Position(x: 10, y: 20))
 				let title = try await page.title()
 				#expect(title == "10,20")
@@ -703,16 +703,16 @@ extension PlaywrightTests {
 		func selectOptionMultiple() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<select multiple>
-							<option value="a">A</option>
-							<option value="b">B</option>
-							<option value="c">C</option>
-						</select>
-					""")
+					<select multiple>
+						<option value="a">A</option>
+						<option value="b">B</option>
+						<option value="c">C</option>
+					</select>
+				""")
 				try await page.locator("select").selectOption(["a", "c"])
-				let selected: [String] = try await page.evaluate("""
-						Array.from(document.querySelector('select').selectedOptions).map(o => o.value)
-					""")
+				let selected = try await page.evaluate("""
+					Array.from(document.querySelector('select').selectedOptions).map(o => o.value)
+				""", as: [String].self)
 				#expect(selected.contains("a"))
 				#expect(selected.contains("c"))
 				#expect(!selected.contains("b"))
@@ -725,8 +725,8 @@ extension PlaywrightTests {
 		func getByTestId() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<button data-testid="submit-btn">Submit</button>
-					""")
+					<button data-testid="submit-btn">Submit</button>
+				""")
 				let text = try await page.getByTestId("submit-btn").textContent()
 				#expect(text == "Submit")
 			}
@@ -745,9 +745,9 @@ extension PlaywrightTests {
 		func getByRoleWithName() async throws {
 			try await withPage { page in
 				try await page.setContent("""
-						<button>Submit</button>
-						<button>Cancel</button>
-					""")
+					<button>Submit</button>
+					<button>Cancel</button>
+				""")
 				let submit = try await page.getByRole(.button, options: .init(name: "Submit")).count()
 				#expect(submit == 1)
 			}

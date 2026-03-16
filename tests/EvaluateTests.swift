@@ -254,11 +254,11 @@ extension PlaywrightTests {
 		func evaluateSharedRef() async throws {
 			try await withPage { page in
 				let result = try await page.evaluate("""
-					() => {
-						const shared = { x: 1 };
-						return { a: shared, b: shared };
-					}
-					""")
+				() => {
+					const shared = { x: 1 };
+					return { a: shared, b: shared };
+				}
+				""")
 				let dict = try #require(result as? NSDictionary)
 				let a = try #require(dict["a"] as? NSDictionary)
 				let b = try #require(dict["b"] as? NSDictionary)
@@ -379,7 +379,7 @@ extension PlaywrightTests {
 		func evaluateTypeMismatch() async throws {
 			try await withPage { page in
 				await #expect {
-					let _: Int = try await page.evaluate("'hello'")
+					_ = try await page.evaluate("'hello'", as: Int.self)
 				} throws: { error in
 					guard case PlaywrightError.invalidArgument = error else { return false }
 					return true
@@ -418,12 +418,12 @@ extension PlaywrightTests {
 		func evaluateErrorObject() async throws {
 			try await withPage { page in
 				let result = try await page.evaluate("""
-					() => {
-						const e = new Error('test error');
-						e.name = 'CustomError';
-						return e;
-					}
-					""")
+				() => {
+					const e = new Error('test error');
+					e.name = 'CustomError';
+					return e;
+				}
+				""")
 				let dict = result as? [String: Any]
 				#expect(dict?["message"] as? String == "test error")
 				#expect(dict?["name"] as? String == "CustomError")
@@ -443,8 +443,8 @@ extension PlaywrightTests {
 			try await withPage { page in
 				// Self-referential array: a[0] === a
 				let arrayResult = try await page.evaluate("""
-					() => { const a = [1]; a.push(a); return a; }
-					""")
+				() => { const a = [1]; a.push(a); return a; }
+				""")
 				let arr = try #require(arrayResult as? NSMutableArray)
 				#expect(arr.count == 2)
 				#expect(arr[0] as? Int == 1)
@@ -452,8 +452,8 @@ extension PlaywrightTests {
 
 				// Self-referential object: o.self === o
 				let objResult = try await page.evaluate("""
-					() => { const o = { v: 42 }; o.self = o; return o; }
-					""")
+				() => { const o = { v: 42 }; o.self = o; return o; }
+				""")
 				let obj = try #require(objResult as? NSMutableDictionary)
 				#expect(obj["v"] as? Int == 42)
 				#expect(obj["self"] as? NSMutableDictionary === obj)

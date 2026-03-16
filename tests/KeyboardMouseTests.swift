@@ -117,7 +117,7 @@ extension PlaywrightTests {
 				try await page.mouse.move(x: 50, y: 50)
 				try await page.mouse.down()
 				try await page.mouse.up()
-				let log: [String] = try await page.evaluate("window._log")
+				let log = try await page.evaluate("window._log", as: [String].self)
 				#expect(log == ["down", "up"])
 			}
 		}

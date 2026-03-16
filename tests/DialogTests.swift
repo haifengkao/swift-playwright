@@ -1,7 +1,7 @@
 import Testing
 import Foundation
-import Synchronization
 @testable import Playwright
+import Synchronization
 
 extension PlaywrightTests {
 	@Suite struct DialogTests {
@@ -45,7 +45,7 @@ extension PlaywrightTests {
 					try? await dialog.dismiss()
 				}
 
-				let result: Bool = try await page.evaluate("window.confirm('Are you sure?')")
+				let result = try await page.evaluate("window.confirm('Are you sure?')", as: Bool.self)
 				#expect(result == false)
 			}
 		}
@@ -57,7 +57,7 @@ extension PlaywrightTests {
 					try? await dialog.accept()
 				}
 
-				let result: Bool = try await page.evaluate("window.confirm('Are you sure?')")
+				let result = try await page.evaluate("window.confirm('Are you sure?')", as: Bool.self)
 				#expect(result == true)
 			}
 		}
@@ -69,7 +69,7 @@ extension PlaywrightTests {
 					try? await dialog.accept(promptText: "hello")
 				}
 
-				let result: String = try await page.evaluate("window.prompt('Enter text:')")
+				let result = try await page.evaluate("window.prompt('Enter text:')", as: String.self)
 				#expect(result == "hello")
 			}
 		}
@@ -93,7 +93,7 @@ extension PlaywrightTests {
 				}
 
 				// Trigger alert on page B
-				_ = try await pageB.evaluate("window.alert('from B')" as String) as Any?
+				_ = try await pageB.evaluate("window.alert('from B')")
 
 				#expect(handlerCalledOnB.withLock { $0 }, "pageB's handler should have been called")
 				#expect(!handlerCalledOnA.withLock { $0 }, "pageA's handler should NOT have been called")
@@ -110,7 +110,7 @@ extension PlaywrightTests {
 					try? await dialog.accept(promptText: dialog.defaultValue)
 				}
 
-				let result: String = try await page.evaluate("window.prompt('Name?', 'Alice')")
+				let result = try await page.evaluate("window.prompt('Name?', 'Alice')", as: String.self)
 				#expect(capturedDefault.withLock { $0 } == "Alice")
 				#expect(result == "Alice")
 			}
@@ -138,7 +138,7 @@ extension PlaywrightTests {
 		func autoDismissal(expression: String, expected: String) async throws {
 			try await withPage { page in
 				// No dialog handler registered — should auto-dismiss without hanging
-				let result: String = try await page.evaluate(expression)
+				let result = try await page.evaluate(expression, as: String.self)
 				#expect(result == expected)
 			}
 		}

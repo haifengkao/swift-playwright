@@ -108,12 +108,12 @@ extension PlaywrightTests {
 		func responseJsonFragment() async throws {
 			try await withPage { page in
 				try await page.setContent("<div></div>")
-				let blobUrl: String = try await page.evaluate("""
-						(() => {
-							const blob = new Blob(['42'], { type: 'application/json' });
-							return URL.createObjectURL(blob);
-						})()
-					""")
+				let blobUrl = try await page.evaluate("""
+					(() => {
+						const blob = new Blob(['42'], { type: 'application/json' });
+						return URL.createObjectURL(blob);
+					})()
+				""", as: String.self)
 
 				let response = try #require(try await page.goto(blobUrl))
 				let json = try await response.json()
@@ -125,12 +125,12 @@ extension PlaywrightTests {
 		func responseBody() async throws {
 			try await withPage { page in
 				try await page.setContent("<div></div>")
-				let blobUrl: String = try await page.evaluate("""
-						(() => {
-							const blob = new Blob(['hello bytes'], { type: 'text/plain' });
-							return URL.createObjectURL(blob);
-						})()
-					""")
+				let blobUrl = try await page.evaluate("""
+					(() => {
+						const blob = new Blob(['hello bytes'], { type: 'text/plain' });
+						return URL.createObjectURL(blob);
+					})()
+				""", as: String.self)
 
 				let response = try #require(try await page.goto(blobUrl))
 				let body = try await response.body()
@@ -142,12 +142,12 @@ extension PlaywrightTests {
 		func responseText() async throws {
 			try await withPage { page in
 				try await page.setContent("<div></div>")
-				let blobUrl: String = try await page.evaluate("""
-						(() => {
-							const blob = new Blob(['hello world'], { type: 'text/plain' });
-							return URL.createObjectURL(blob);
-						})()
-					""")
+				let blobUrl = try await page.evaluate("""
+					(() => {
+						const blob = new Blob(['hello world'], { type: 'text/plain' });
+						return URL.createObjectURL(blob);
+					})()
+				""", as: String.self)
 
 				let response = try #require(try await page.goto(blobUrl))
 				let text = try await response.text()
@@ -159,12 +159,12 @@ extension PlaywrightTests {
 		func responseJsonNested() async throws {
 			try await withPage { page in
 				try await page.setContent("<div></div>")
-				let blobUrl: String = try await page.evaluate("""
-						(() => {
-							const blob = new Blob(['{"name":"test","nested":{"value":42},"items":[1,2,3]}'], { type: 'application/json' });
-							return URL.createObjectURL(blob);
-						})()
-					""")
+				let blobUrl = try await page.evaluate("""
+					(() => {
+						const blob = new Blob(['{"name":"test","nested":{"value":42},"items":[1,2,3]}'], { type: 'application/json' });
+						return URL.createObjectURL(blob);
+					})()
+				""", as: String.self)
 
 				let response = try #require(try await page.goto(blobUrl))
 				let json = try #require(try await response.json() as? [String: Any])
@@ -223,7 +223,7 @@ extension PlaywrightTests {
 		func gotoWithReferer() async throws {
 			try await withPage { page in
 				try await page.goto("https://example.com", referer: "https://custom-referer.example/")
-				let referrer: String = try await page.evaluate("document.referrer")
+				let referrer = try await page.evaluate("document.referrer", as: String.self)
 				#expect(referrer == "https://custom-referer.example/")
 			}
 		}

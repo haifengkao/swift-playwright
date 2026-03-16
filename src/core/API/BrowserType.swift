@@ -69,6 +69,52 @@ public final class BrowserType: ChannelOwner, @unchecked Sendable {
 		return browser
 	}
 
+	/// Connects to an existing browser instance over the Chrome DevTools Protocol.
+	///
+	/// This method is only supported for Chromium-based browsers. It connects to a browser
+	/// that was launched with a remote debugging port/pipe enabled.
+	///
+	/// ```swift
+	/// let playwright = try await Playwright.launch()
+	/// let browser = try await playwright.chromium.connectOverCDP("http://localhost:9222")
+	/// let context = browser.contexts.first!
+	/// let page = context.pages.first!
+	/// // ... use existing browser session ...
+	/// try await browser.close()
+	/// ```
+	///
+	/// - Parameter endpointURL: A CDP endpoint URL to connect to (e.g. `http://localhost:9222`).
+	/// - Parameter headers: Additional HTTP headers to send with the connect request.
+	/// - Parameter slowMo: Slows down all operations by the specified amount.
+	/// - Parameter timeout: Maximum time to wait for the connection. Defaults to 30 seconds.
+	/// - Returns: A `Browser` instance connected to the remote browser.
+	/// - Throws: `PlaywrightError.invalidArgument` if called on a non-Chromium browser type.
+	/// - Throws: `PlaywrightError` if the connection could not be established.
+	///
+	/// See: https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp
+	public func connectOverCDP(
+		_ endpointURL: String,
+		headers: [String: String]? = nil,
+		slowMo: Duration? = nil,
+		timeout: Duration? = nil
+	) async throws -> Browser {
+		guard name == "chromium" else {
+			throw PlaywrightError.invalidArgument("Connecting over CDP is only supported in Chromium.")
+		}
+
+		var params: [String: Any] = [
+			"endpointURL": endpointURL,
+			"timeout": (timeout ?? .seconds(30)).milliseconds,
+		]
+
+		if let slowMo { params["slowMo"] = slowMo.milliseconds }
+		if let headers { params["headers"] = headers.map { ["name": $0.key, "value": $0.value] } }
+
+		let browser: Browser = try await sendAndResolve("connectOverCDP", params: params, key: "browser")
+		browser.browserType = self
+		return browser
+	}
+
 	/// Launches a browser with a persistent user data directory.
 	///
 	/// Returns a `BrowserContext` that persists cookies, localStorage, and session

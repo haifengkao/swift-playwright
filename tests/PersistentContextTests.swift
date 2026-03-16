@@ -52,7 +52,7 @@ extension PlaywrightTests {
 				if let existing = context.pages.first { page = existing }
 				else { page = try await context.newPage() }
 
-				let result: Int = try await page.evaluate("1 + 1")
+				let result = try await page.evaluate("1 + 1", as: Int.self)
 				#expect(result == 2)
 			}
 		}

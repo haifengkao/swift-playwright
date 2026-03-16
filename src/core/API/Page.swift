@@ -504,6 +504,7 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// Waits for an element matching the selector to appear in the DOM.
 	///
 	/// See: https://playwright.dev/docs/api/class-page#page-wait-for-selector
+	@discardableResult
 	public func waitForSelector(_ selector: String, state: WaitForSelectorState = .visible, strict: Bool = false, timeout: Duration? = nil) async throws -> ElementHandle? {
 		try await mainFrame.waitForSelector(selector, state: state, strict: strict, timeout: timeout)
 	}
@@ -529,7 +530,7 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// - Throws: `PlaywrightError.invalidArgument` if the result cannot be cast to `T`.
 	///
 	/// See: https://playwright.dev/docs/api/class-page#page-evaluate
-	public func evaluate<T>(_ expression: String, arg: Any? = nil) async throws -> T {
+	public func evaluate<T>(_ expression: String, arg: Any? = nil, as _: T.Type) async throws -> T {
 		try await mainFrame.evaluate(expression, arg: arg)
 	}
 
@@ -545,7 +546,7 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// - Returns: The result of the evaluation, or `nil` for JavaScript `null`/`undefined`.
 	///
 	/// See: https://playwright.dev/docs/api/class-page#page-evaluate
-	@_disfavoredOverload
+	@_disfavoredOverload @discardableResult
 	public func evaluate(_ expression: String, arg: Any? = nil) async throws -> Any? {
 		try await mainFrame.evaluate(expression, arg: arg)
 	}

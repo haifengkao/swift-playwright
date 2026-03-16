@@ -14,8 +14,8 @@ extension PlaywrightTests {
 				try await withThrowingTaskGroup(of: (Int, Int).self) { group in
 					for i in 0..<5 {
 						group.addTask {
-							let result: Int = try await page.evaluate(
-								"(x) => new Promise(r => setTimeout(() => r(x * 2), \(delayMs)))", arg: i
+							let result = try await page.evaluate(
+								"(x) => new Promise(r => setTimeout(() => r(x * 2), \(delayMs)))", arg: i, as: Int.self
 							)
 							return (i, result)
 						}
@@ -62,6 +62,5 @@ extension PlaywrightTests {
 				}
 			}
 		}
-
 	}
 }

@@ -1,7 +1,7 @@
 import Testing
 import Foundation
-import Synchronization
 @testable import Playwright
+import Synchronization
 
 extension PlaywrightTests {
 	@Suite struct RouteTests {
@@ -41,9 +41,10 @@ extension PlaywrightTests {
 				}
 				try await page.goto("https://test.local/base")
 
-				let result: Int = try await page.evaluate("""
-					fetch('/mock-api').then(r => r.json()).then(d => d.value)
-				""")
+				let result = try await page.evaluate("""
+				fetch('/mock-api').then(r => r.json()).then(d => d.value)
+				""", as: Int.self)
+
 				#expect(result == 42)
 			}
 		}
@@ -64,11 +65,11 @@ extension PlaywrightTests {
 				// continue_() resolves the route, so the fetch completes with a network error
 				// (no real server at test.local). If continue_() didn't resolve the route, the
 				// fetch would hang until the AbortSignal fires, yielding "timeout" instead.
-				let outcome: String = try await page.evaluate("""
-					fetch('/api-call', { signal: AbortSignal.timeout(5000) })
-						.then(() => 'success')
-						.catch(e => e.name === 'TimeoutError' ? 'timeout' : 'network-error')
-				""")
+				let outcome = try await page.evaluate("""
+				fetch('/api-call', { signal: AbortSignal.timeout(5000) })
+					.then(() => 'success')
+					.catch(e => e.name === 'TimeoutError' ? 'timeout' : 'network-error')
+				""", as: String.self)
 				#expect(outcome == "network-error", "continue_() should forward to network, not leave the route unresolved")
 			}
 		}
@@ -118,7 +119,7 @@ extension PlaywrightTests {
 				}
 
 				try await page.goto("https://test.local/base")
-				let result: String = try await page.evaluate("fetch('/api/data').then(r => r.text())")
+				let result = try await page.evaluate("fetch('/api/data').then(r => r.text())", as: String.self)
 				#expect(result == "api")
 				#expect(handlerUsed.withLock { $0 } == "api")
 			}
@@ -132,7 +133,7 @@ extension PlaywrightTests {
 				}
 
 				// This handler throws without resolving the route
-				try await page.route("**/api/data") { route in
+				try await page.route("**/api/data") { _ in
 					struct HandlerError: Error {}
 					throw HandlerError()
 				}
@@ -142,14 +143,14 @@ extension PlaywrightTests {
 				// When a handler throws, the route should be aborted immediately.
 				// Bug behavior: route is left unresolved, fetch hangs until the 5s AbortSignal.
 				// Fixed behavior: route is aborted, fetch fails in < 1 second.
-				let result: String = try await page.evaluate("""
+				let result = try await page.evaluate("""
 					(() => {
 						const start = Date.now();
 						return fetch('/api/data', { signal: AbortSignal.timeout(5000) })
 							.then(() => `succeeded:${Date.now() - start}`)
 							.catch(() => `failed:${Date.now() - start}`);
 					})()
-				""")
+				""", as: String.self)
 				let parts = result.split(separator: ":")
 				let status = String(parts[0])
 				let elapsedMs = Int(parts[1]) ?? 0
@@ -172,9 +173,9 @@ extension PlaywrightTests {
 
 				try await page.goto("https://test.local/base")
 
-				let result: String = try await page.evaluate("""
+				let result = try await page.evaluate("""
 					fetch('/blocked').then(() => 'ok').catch(() => 'blocked')
-				""")
+				""", as: String.self)
 				#expect(result == "blocked")
 			}
 		}
@@ -194,14 +195,14 @@ extension PlaywrightTests {
 				try await page.goto("https://test.local/base")
 
 				// First request should be intercepted
-				let result1: String = try await page.evaluate("fetch('/test-path').then(r => r.text())")
+				let result1 = try await page.evaluate("fetch('/test-path').then(r => r.text())", as: String.self)
 				#expect(result1 == "intercepted")
 
 				// Remove the route
 				try await page.unroute("**/test-path")
 
 				// Second request should NOT be intercepted — goes to real server, fetch fails
-				let result2: String = try await page.evaluate("fetch('/test-path', { signal: AbortSignal.timeout(2000) }).then(r => r.text()).catch(() => 'not-intercepted')")
+				let result2 = try await page.evaluate("fetch('/test-path', { signal: AbortSignal.timeout(2000) }).then(r => r.text()).catch(() => 'not-intercepted')", as: String.self)
 				#expect(result2 == "not-intercepted")
 			}
 		}
