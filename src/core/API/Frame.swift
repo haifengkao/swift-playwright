@@ -395,6 +395,80 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		return await connection.resolveArray(from: result, key: "elements")
 	}
 
+	/// Waits until the frame's URL matches the given predicate.
+	///
+	/// Returns immediately if the current URL already matches. Otherwise,
+	/// listens for `navigated` events (which fire for both full navigations
+	/// and SPA `history.pushState`/`replaceState` changes) until a match
+	/// occurs or the timeout expires.
+	///
+	/// - Parameter predicate: A closure that receives the frame's current URL
+	///   and returns `true` when the URL is acceptable.
+	/// - Parameter timeout: Maximum time to wait. Defaults to 30 seconds.
+	/// - Throws: `PlaywrightError.navigationFailed` if the timeout expires
+	///   before the URL matches.
+	///
+	/// See: https://playwright.dev/docs/api/class-frame#frame-wait-for-url
+	public func waitForURL(_ predicate: @escaping @Sendable (String) -> Bool, timeout: Duration? = nil) async throws {
+		// Fast path: already matches.
+		if predicate(url) { return }
+
+		let deadline = ContinuousClock.now + (timeout ?? defaultTimeout)
+
+		try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+			// Shared flag prevents double-resume from race between event and timeout.
+			let resumed = Mutex(false)
+
+			let tryResume: @Sendable (Result<Void, any Error>) -> Void = { result in
+				let shouldResume = resumed.withLock { flag in
+					guard !flag else { return false }
+					flag = true
+					return true
+				}
+				if shouldResume {
+					continuation.resume(with: result)
+				}
+			}
+
+			// Listen for navigated events.
+			on("navigated") { params in
+				let newURL = params["url"] as? String ?? ""
+				if predicate(newURL) {
+					tryResume(.success(()))
+				}
+			}
+
+			// Timeout watchdog.
+			Task { [weak self] in
+				let remaining = deadline - .now
+				if remaining > .zero {
+					try? await Task.sleep(for: remaining)
+				}
+				let lastURL = self?.url ?? "<detached>"
+				tryResume(.failure(PlaywrightError.navigationFailed(
+					"Timeout waiting for URL to match predicate (last URL: \(lastURL))"
+				)))
+			}
+		}
+	}
+
+	/// Waits for the frame to reach the specified load state.
+	///
+	/// Returns immediately if the state has already been reached.
+	///
+	/// - Parameter state: The load state to wait for. Defaults to `.load`.
+	/// - Parameter timeout: Maximum time to wait. Defaults to 30 seconds.
+	///
+	/// See: https://playwright.dev/docs/api/class-frame#frame-wait-for-load-state
+	public func waitForLoadState(_ state: WaitUntilState = .load, timeout: Duration? = nil) async throws {
+		if loadStates.contains(state.rawValue) { return }
+
+		_ = try await send("waitForLoadState", params: [
+			"state": state.rawValue,
+			"timeout": timeoutMs(timeout),
+		])
+	}
+
 	/// Waits for the given duration (protocol-level sleep).
 	///
 	/// See: https://playwright.dev/docs/api/class-frame#frame-wait-for-timeout

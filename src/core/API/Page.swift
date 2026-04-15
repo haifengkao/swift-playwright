@@ -509,6 +509,36 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		try await mainFrame.waitForSelector(selector, state: state, strict: strict, timeout: timeout)
 	}
 
+	/// Waits until the page's URL matches the given predicate.
+	///
+	/// Returns immediately if the current URL already matches. Otherwise,
+	/// listens for frame navigation events until a match occurs or the
+	/// timeout expires. Works for both full navigations and SPA
+	/// `history.pushState`/`replaceState` changes.
+	///
+	/// - Parameter predicate: A closure that receives the page's current URL
+	///   and returns `true` when the URL is acceptable.
+	/// - Parameter timeout: Maximum time to wait. Defaults to 30 seconds.
+	/// - Throws: `PlaywrightError.navigationFailed` if the timeout expires
+	///   before the URL matches.
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-wait-for-url
+	public func waitForURL(_ predicate: @escaping @Sendable (String) -> Bool, timeout: Duration? = nil) async throws {
+		try await mainFrame.waitForURL(predicate, timeout: timeout)
+	}
+
+	/// Waits for the page to reach the specified load state.
+	///
+	/// Returns immediately if the state has already been reached.
+	///
+	/// - Parameter state: The load state to wait for. Defaults to `.load`.
+	/// - Parameter timeout: Maximum time to wait. Defaults to 30 seconds.
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-wait-for-load-state
+	public func waitForLoadState(_ state: WaitUntilState = .load, timeout: Duration? = nil) async throws {
+		try await mainFrame.waitForLoadState(state, timeout: timeout)
+	}
+
 	/// Waits for the given duration (protocol-level sleep).
 	///
 	/// See: https://playwright.dev/docs/api/class-page#page-wait-for-timeout
