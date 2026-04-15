@@ -46,6 +46,7 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		var dialogHandlers: [@Sendable (Dialog) async -> Void] = []
 		var consoleHandlers: [@Sendable (ConsoleMessage) -> Void] = []
 		var downloadHandlers: [@Sendable (Download) async -> Void] = []
+		var responseHandlers: [@Sendable (Response) -> Void] = []
 	}
 
 	private let state = Mutex(State())
@@ -134,6 +135,7 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 				$0.dialogHandlers.removeAll()
 				$0.consoleHandlers.removeAll()
 				$0.downloadHandlers.removeAll()
+				$0.responseHandlers.removeAll()
 			}
 			self.context.removePage(self)
 		}
@@ -151,6 +153,11 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 			else { return }
 
 			self.dispatchDownload(Download(page: self, url: url, suggestedFilename: suggestedFilename, artifact: artifact))
+		}
+
+		on("response") { [weak self] params in
+			guard let self, let response = params["response"] as? Response else { return }
+			self.dispatchResponse(response)
 		}
 	}
 
@@ -321,6 +328,31 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		let handlers = state.withLock { $0.downloadHandlers }
 		for handler in handlers {
 			Task<Void, Never> { await handler(download) }
+		}
+	}
+
+	// MARK: - Response
+
+	/// Registers a handler for network response events.
+	///
+	/// Emitted when a response is received for any request made by the page.
+	///
+	/// ```swift
+	/// page.onResponse { response in
+	///     print("\(response.status) \(response.url)")
+	/// }
+	/// ```
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-event-response
+	public func onResponse(_ handler: @escaping @Sendable (Response) -> Void) {
+		state.withLock { $0.responseHandlers.append(handler) }
+	}
+
+	/// Called when a response event is received for this page.
+	func dispatchResponse(_ response: Response) {
+		let handlers = state.withLock { $0.responseHandlers }
+		for handler in handlers {
+			handler(response)
 		}
 	}
 

@@ -35,8 +35,8 @@ public final class Route: ChannelOwner, @unchecked Sendable {
 	/// Continues the request, optionally with modifications.
 	///
 	/// See: https://playwright.dev/docs/api/class-route#route-continue
-	public func continue_(url: String? = nil, method: String? = nil, headers: [String: String]? = nil, postData: Data? = nil) async throws {
-		var params: [String: Any] = [:]
+	public func continue_(url: String? = nil, method: String? = nil, headers: [String: String]? = nil, postData: Data? = nil, isFallback: Bool = false) async throws {
+		var params: [String: Any] = ["isFallback": isFallback]
 		if let url { params["url"] = url }
 		if let method { params["method"] = method }
 		if let headers { params["headers"] = headers.map { ["name": $0.key, "value": $0.value] } }
