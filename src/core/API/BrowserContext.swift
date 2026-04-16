@@ -94,7 +94,8 @@ public final class BrowserContext: ChannelOwner, @unchecked Sendable {
 		on("requestFailed") { params in
 			guard let request = params["request"] as? Request,
 			      let page = params["page"] as? Page else { return }
-			page.dispatchRequestFailed(request)
+			let failureText = params["failureText"] as? String ?? ""
+			page.dispatchRequestFailed(request, failureText: failureText)
 		}
 	}
 

@@ -49,7 +49,7 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		var responseHandlers: [@Sendable (Response) -> Void] = []
 		var requestHandlers: [@Sendable (Request) -> Void] = []
 		var requestFinishedHandlers: [@Sendable (Request) -> Void] = []
-		var requestFailedHandlers: [@Sendable (Request) -> Void] = []
+		var requestFailedHandlers: [@Sendable (Request, String) -> Void] = []
 	}
 
 	private let state = Mutex(State())
@@ -422,10 +422,12 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	}
 
 	/// Registers a handler for `requestfailed` events. Fires when a request
-	/// fails (network error, blocked, etc.).
+	/// fails (network error, blocked, etc.). The handler receives the
+	/// request and the server-supplied failure description string (e.g.
+	/// `"net::ERR_BLOCKED_BY_CLIENT"`).
 	///
 	/// See: https://playwright.dev/docs/api/class-page#page-event-request-failed
-	public func onRequestFailed(_ handler: @escaping @Sendable (Request) -> Void) async {
+	public func onRequestFailed(_ handler: @escaping @Sendable (Request, String) -> Void) async {
 		let isFirst = state.withLock { state in
 			let wasEmpty = state.requestFailedHandlers.isEmpty
 			state.requestFailedHandlers.append(handler)
@@ -436,10 +438,10 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	}
 
 	/// Called when a requestFailed event is received for this page.
-	func dispatchRequestFailed(_ request: Request) {
+	func dispatchRequestFailed(_ request: Request, failureText: String) {
 		let handlers = state.withLock { $0.requestFailedHandlers }
 		for handler in handlers {
-			handler(request)
+			handler(request, failureText)
 		}
 	}
 
