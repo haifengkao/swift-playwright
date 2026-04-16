@@ -64,6 +64,38 @@ public final class BrowserContext: ChannelOwner, @unchecked Sendable {
 			self?.dispatchConsole(message)
 			message.page?.dispatchConsole(message)
 		}
+
+		// Response events are emitted on the BrowserContext channel server-side
+		// (see Playwright's `frames.js: emitOnContext(..., Response, ...)`),
+		// then forwarded to the originating page. ``Page.onResponse`` enables the
+		// subscription via ``updateSubscription``; this listener routes each
+		// event to the matching page's response handlers.
+		on("response") { params in
+			guard let response = params["response"] as? Response,
+			      let page = params["page"] as? Page else { return }
+			page.dispatchResponse(response)
+		}
+
+		// Request / requestFinished / requestFailed share the same plumbing —
+		// emitted on BrowserContext, forwarded to page. Subscription enabled by
+		// the matching ``Page.onRequest*`` registration.
+		on("request") { params in
+			guard let request = params["request"] as? Request,
+			      let page = params["page"] as? Page else { return }
+			page.dispatchRequest(request)
+		}
+
+		on("requestFinished") { params in
+			guard let request = params["request"] as? Request,
+			      let page = params["page"] as? Page else { return }
+			page.dispatchRequestFinished(request)
+		}
+
+		on("requestFailed") { params in
+			guard let request = params["request"] as? Request,
+			      let page = params["page"] as? Page else { return }
+			page.dispatchRequestFailed(request)
+		}
 	}
 
 	/// Creates a new page in this context.

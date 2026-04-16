@@ -47,6 +47,9 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		var consoleHandlers: [@Sendable (ConsoleMessage) -> Void] = []
 		var downloadHandlers: [@Sendable (Download) async -> Void] = []
 		var responseHandlers: [@Sendable (Response) -> Void] = []
+		var requestHandlers: [@Sendable (Request) -> Void] = []
+		var requestFinishedHandlers: [@Sendable (Request) -> Void] = []
+		var requestFailedHandlers: [@Sendable (Request) -> Void] = []
 	}
 
 	private let state = Mutex(State())
@@ -136,6 +139,9 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 				$0.consoleHandlers.removeAll()
 				$0.downloadHandlers.removeAll()
 				$0.responseHandlers.removeAll()
+				$0.requestHandlers.removeAll()
+				$0.requestFinishedHandlers.removeAll()
+				$0.requestFailedHandlers.removeAll()
 			}
 			self.context.removePage(self)
 		}
@@ -338,14 +344,20 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	/// Emitted when a response is received for any request made by the page.
 	///
 	/// ```swift
-	/// page.onResponse { response in
+	/// await page.onResponse { response in
 	///     print("\(response.status) \(response.url)")
 	/// }
 	/// ```
 	///
 	/// See: https://playwright.dev/docs/api/class-page#page-event-response
-	public func onResponse(_ handler: @escaping @Sendable (Response) -> Void) {
-		state.withLock { $0.responseHandlers.append(handler) }
+	public func onResponse(_ handler: @escaping @Sendable (Response) -> Void) async {
+		let isFirst = state.withLock { state in
+			let wasEmpty = state.responseHandlers.isEmpty
+			state.responseHandlers.append(handler)
+			return wasEmpty
+		}
+
+		if isFirst { await sendNoReply("updateSubscription", params: ["event": "response", "enabled": true]) }
 	}
 
 	/// Called when a response event is received for this page.
@@ -353,6 +365,81 @@ public final class Page: ChannelOwner, LocatorFactory, @unchecked Sendable {
 		let handlers = state.withLock { $0.responseHandlers }
 		for handler in handlers {
 			handler(response)
+		}
+	}
+
+	// MARK: - Request
+
+	/// Registers a handler for network request events.
+	///
+	/// Emitted when a request is sent by the page.
+	///
+	/// ```swift
+	/// await page.onRequest { request in
+	///     print("\(request.method) \(request.url)")
+	/// }
+	/// ```
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-event-request
+	public func onRequest(_ handler: @escaping @Sendable (Request) -> Void) async {
+		let isFirst = state.withLock { state in
+			let wasEmpty = state.requestHandlers.isEmpty
+			state.requestHandlers.append(handler)
+			return wasEmpty
+		}
+
+		if isFirst { await sendNoReply("updateSubscription", params: ["event": "request", "enabled": true]) }
+	}
+
+	/// Called when a request event is received for this page.
+	func dispatchRequest(_ request: Request) {
+		let handlers = state.withLock { $0.requestHandlers }
+		for handler in handlers {
+			handler(request)
+		}
+	}
+
+	/// Registers a handler for `requestfinished` events. Fires once a request
+	/// completes successfully (response received and body downloaded).
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-event-request-finished
+	public func onRequestFinished(_ handler: @escaping @Sendable (Request) -> Void) async {
+		let isFirst = state.withLock { state in
+			let wasEmpty = state.requestFinishedHandlers.isEmpty
+			state.requestFinishedHandlers.append(handler)
+			return wasEmpty
+		}
+
+		if isFirst { await sendNoReply("updateSubscription", params: ["event": "requestFinished", "enabled": true]) }
+	}
+
+	/// Called when a requestFinished event is received for this page.
+	func dispatchRequestFinished(_ request: Request) {
+		let handlers = state.withLock { $0.requestFinishedHandlers }
+		for handler in handlers {
+			handler(request)
+		}
+	}
+
+	/// Registers a handler for `requestfailed` events. Fires when a request
+	/// fails (network error, blocked, etc.).
+	///
+	/// See: https://playwright.dev/docs/api/class-page#page-event-request-failed
+	public func onRequestFailed(_ handler: @escaping @Sendable (Request) -> Void) async {
+		let isFirst = state.withLock { state in
+			let wasEmpty = state.requestFailedHandlers.isEmpty
+			state.requestFailedHandlers.append(handler)
+			return wasEmpty
+		}
+
+		if isFirst { await sendNoReply("updateSubscription", params: ["event": "requestFailed", "enabled": true]) }
+	}
+
+	/// Called when a requestFailed event is received for this page.
+	func dispatchRequestFailed(_ request: Request) {
+		let handlers = state.withLock { $0.requestFailedHandlers }
+		for handler in handlers {
+			handler(request)
 		}
 	}
 
