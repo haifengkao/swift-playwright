@@ -104,6 +104,14 @@ extension PlaywrightTests {
 			}
 		}
 
+		@Test("page.waitForLoadState waits for later load states without protocol errors")
+		func waitForLoadStateWaitsForLaterLoadState() async throws {
+			try await withPage { page in
+				_ = try await page.goto("https://example.com", waitUntil: .domcontentloaded)
+				try await page.waitForLoadState(.networkidle, timeout: .seconds(5))
+			}
+		}
+
 		@Test("Response.json() parses a JSON fragment (bare number)")
 		func responseJsonFragment() async throws {
 			try await withPage { page in

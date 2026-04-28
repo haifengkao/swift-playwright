@@ -461,12 +461,45 @@ public final class Frame: ChannelOwner, LocatorFactory, @unchecked Sendable {
 	///
 	/// See: https://playwright.dev/docs/api/class-frame#frame-wait-for-load-state
 	public func waitForLoadState(_ state: WaitUntilState = .load, timeout: Duration? = nil) async throws {
-		if loadStates.contains(state.rawValue) { return }
+		let targetState = state.rawValue
+		if loadStates.contains(targetState) { return }
+		let deadline = ContinuousClock.now + (timeout ?? defaultTimeout)
 
-		_ = try await send("waitForLoadState", params: [
-			"state": state.rawValue,
-			"timeout": timeoutMs(timeout),
-		])
+		try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+			let resumed = Mutex(false)
+
+			let tryResume: @Sendable (Result<Void, any Error>) -> Void = { result in
+				let shouldResume = resumed.withLock { flag in
+					guard !flag else { return false }
+					flag = true
+					return true
+				}
+				if shouldResume {
+					continuation.resume(with: result)
+				}
+			}
+
+			on("loadstate") { params in
+				if params["add"] as? String == targetState {
+					tryResume(.success(()))
+				}
+			}
+
+			if loadStates.contains(targetState) {
+				tryResume(.success(()))
+			}
+
+			Task { [weak self] in
+				let remaining = deadline - .now
+				if remaining > .zero {
+					try? await Task.sleep(for: remaining)
+				}
+				let lastURL = self?.url ?? "<detached>"
+				tryResume(.failure(PlaywrightError.navigationFailed(
+					"Timeout waiting for load state \"\(targetState)\" (last URL: \(lastURL))"
+				)))
+			}
+		}
 	}
 
 	/// Waits for the given duration (protocol-level sleep).
